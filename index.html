@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão — Placar da Rodada</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --pitch-dark:#0B2E22;
+    --pitch-mid:#0F3B2B;
+    --stripe:#124531;
+    --card:#123726;
+    --card-2:#164231;
+    --chalk:#F4F1E7;
+    --chalk-dim:#B9C4B9;
+    --floodlight:#FFC94D;
+    --floodlight-dim:#8A6A22;
+    --gold:#FFD166;
+    --silver:#D7DCE0;
+    --bronze:#D08A4E;
+    --red-card:#E4572E;
+    --green-ok:#6FCF97;
+    --line:rgba(244,241,231,0.12);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:
+      repeating-linear-gradient(135deg, var(--pitch-mid) 0px, var(--pitch-mid) 40px, var(--stripe) 40px, var(--stripe) 80px);
+    color:var(--chalk);
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 0 60px;}
+
+  header.board{
+    background:var(--pitch-dark);
+    border-bottom:4px solid var(--floodlight);
+    padding:22px 20px 18px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.board::before{
+    content:"";
+    position:absolute;inset:0;
+    background-image: radial-gradient(rgba(244,241,231,0.05) 1px, transparent 1px);
+    background-size:6px 6px;
+    pointer-events:none;
+  }
+  .board-inner{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .title{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:40px;
+    letter-spacing:4px;
+    color:var(--floodlight);
+    line-height:1;
+    margin:0;
+  }
+  .subtitle{
+    font-family:'Oswald',sans-serif;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--chalk-dim);
+    margin-top:4px;
+  }
+  .who{
+    text-align:right;
+    font-family:'Oswald',sans-serif;
+    font-size:13px;
+    color:var(--chalk-dim);
+  }
+  .who b{color:var(--chalk);font-weight:500;}
+  .who a{color:var(--floodlight);text-decoration:underline;cursor:pointer;}
+
+  nav.tabs{
+    display:flex;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  nav.tabs button{
+    flex:1;
+    min-width:110px;
+    background:transparent;
+    border:none;
+    color:var(--chalk-dim);
+    font-family:'Oswald',sans-serif;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    font-size:12px;
+    padding:14px 8px;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+  }
+  nav.tabs button.active{
+    color:var(--floodlight);
+    border-bottom-color:var(--floodlight);
+    background:var(--card-2);
+  }
+
+  main{padding:20px;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--floodlight);
+    margin:0 0 14px;
+    padding-bottom:8px;
+    border-bottom:1px dashed var(--line);
+  }
+  .muted{color:var(--chalk-dim);font-size:13px;}
+  input[type=text], input[type=number], select, textarea{
+    background:#0C2A1E;
+    border:1px solid var(--line);
+    color:var(--chalk);
+    padding:9px 10px;
+    border-radius:6px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+  }
+  textarea{
+    width:100%;
+    min-height:110px;
+    font-family:'Roboto Mono',monospace;
+    font-size:13px;
+    resize:vertical;
+  }
+  input[type=number]{width:56px;text-align:center;font-family:'Roboto Mono',monospace;font-weight:700;}
+  input::placeholder, textarea::placeholder{color:#5b6b60;}
+  .import-status{font-size:13px;margin-top:6px;white-space:pre-line;}
+  .collapsible-toggle{
+    font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--floodlight);cursor:pointer;display:inline-block;margin-bottom:8px;
+  }
+  button.btn{
+    background:var(--floodlight);
+    color:#241a04;
+    border:none;
+    font-family:'Oswald',sans-serif;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    font-size:13px;
+    font-weight:600;
+    padding:10px 18px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  button.btn:hover{filter:brightness(1.08);}
+  button.btn.secondary{
+    background:transparent;
+    color:var(--chalk);
+    border:1px solid var(--line);
+  }
+  button.btn.danger{background:var(--red-card);color:#fff;}
+  button.btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+
+  /* Ranking */
+  table.rank{width:100%;border-collapse:collapse;}
+  table.rank th{
+    text-align:left;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--chalk-dim);padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  table.rank td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle;}
+  table.rank tr:last-child td{border-bottom:none;}
+  .pos{
+    font-family:'Roboto Mono',monospace;font-weight:700;font-size:16px;
+    width:34px;display:inline-flex;align-items:center;justify-content:center;
+  }
+  tr.top1 .pos{color:var(--gold);text-shadow:0 0 8px rgba(255,209,102,0.5);}
+  tr.top2 .pos{color:var(--silver);}
+  tr.top3 .pos{color:var(--bronze);}
+  .pts{font-family:'Roboto Mono',monospace;font-weight:700;font-size:16px;color:var(--floodlight);}
+  .name-cell{font-weight:600;}
+
+  /* Ticket-style match card */
+  .match{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#0C2A1E;
+    border:1px dashed var(--line);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-bottom:8px;
+  }
+  .team{flex:1;font-size:14px;font-weight:600;}
+  .team.away{text-align:right;}
+  .vs{font-family:'Roboto Mono',monospace;color:var(--chalk-dim);font-size:12px;padding:0 6px;}
+  .score-inputs{display:flex;align-items:center;gap:6px;}
+  .result-tag{
+    font-family:'Roboto Mono',monospace;font-size:13px;font-weight:700;color:var(--chalk);
+    background:#1c3d2c;padding:4px 10px;border-radius:5px;min-width:56px;text-align:center;
+  }
+  .pts-tag{
+    font-family:'Roboto Mono',monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;margin-left:8px;
+  }
+  .pts-tag.pExact{background:rgba(111,207,151,0.15);color:var(--green-ok);}
+  .pts-tag.pResult{background:rgba(255,201,77,0.15);color:var(--floodlight);}
+  .pts-tag.pWrong{background:rgba(228,87,46,0.12);color:#f0906f;}
+
+  .player-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--card-2);border:1px solid var(--line);border-radius:24px;
+    padding:8px 14px;margin:0 8px 8px 0;font-size:14px;
+  }
+  .pick-select-chip{cursor:pointer;transition:border-color .15s,color .15s;}
+  .pick-select-chip:hover{border-color:var(--floodlight-dim);}
+  .pick-select-chip.selected{border-color:var(--floodlight);color:var(--floodlight);}
+  .player-chip .avatar{
+    width:22px;height:22px;border-radius:50%;background:var(--floodlight);color:#241a04;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+    font-family:'Roboto Mono',monospace;
+  }
+
+  .empty{text-align:center;padding:30px 10px;color:var(--chalk-dim);font-size:14px;}
+  .round-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .round-tag{font-family:'Roboto Mono',monospace;font-size:11px;padding:3px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:1px;}
+  .round-tag.aberta{background:rgba(255,201,77,0.15);color:var(--floodlight);}
+  .round-tag.encerrada{background:rgba(111,207,151,0.15);color:var(--green-ok);}
+  .remove-x{color:#f0906f;cursor:pointer;font-size:13px;margin-left:8px;}
+
+  ::-webkit-scrollbar{height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="board">
+    <div class="board-inner">
+      <div>
+        <p class="title">BOLÃO</p>
+        <p class="subtitle" style="margin-top:2px;">Brasileirão Série A 2026</p>
+        <p class="subtitle" id="roundCountLabel">carregando...</p>
+      </div>
+      <div></div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="ranking" class="active">Classificação</button>
+    <button data-view="rodadas">Rodadas</button>
+    <button data-view="jogadores">Jogadores</button>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<script>
+(function(){
+  var state = { users: [], rounds: [], picks: {}, view: 'ranking', loaded:false };
+
+
+  var SEED_PLAYERS = [
+    ['Da Cruz',187],['Marlan',185],['Dudu',184],['Spinkfloyd',181],['Gokulandia',165],
+    ['Will',161],['Miguel',152],['Tairony',148],['Douglas',140],['Erikson',122],
+    ['Gusta',121],['Andrey',109],['André',95],['Fabrício',77],['Janderson',31],
+    ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Shiva',11],
+    ['Júlio',9],['João Felipe',8],['Emanoel',6]
+  ];
+
+  async function seedInitialPlayers(){
+    var already = await sGet('seededPlayersV1', true);
+    if(already) return false;
+    var existingNames = state.users.map(function(u){ return u.name.toLowerCase(); });
+    var added = false;
+    SEED_PLAYERS.forEach(function(pair){
+      var name = pair[0], pts = pair[1];
+      if(existingNames.indexOf(name.toLowerCase())===-1){
+        state.users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() });
+        existingNames.push(name.toLowerCase());
+        added = true;
+      }
+    });
+    if(added) await sSet('users', state.users, true);
+    await sSet('seededPlayersV1', true, true);
+    return added;
+  }
+
+  async function resetRoundsAndReseedPlayers(){
+    state.rounds = [];
+    state.picks = {};
+    SEED_PLAYERS.forEach(function(pair){
+      var name = pair[0], pts = pair[1];
+      var user = state.users.find(function(u){ return normalizeName(u.name)===normalizeName(name); });
+      if(user){
+        user.startingPoints = pts;
+      } else {
+        state.users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() });
+      }
+    });
+    var okUsers = await sSet('users', state.users, true);
+    var okRounds = await sSet('rounds', state.rounds, true);
+    var okPicks = await sSet('picks', state.picks, true);
+    return okUsers && okRounds && okPicks;
+  }
+
+  function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
+
+  var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co/rest/v1/';
+  var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function sGet(key, shared){
+    try{
+      var res = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(res.error) throw res.error;
+      return res.data ? res.data.value : null;
+    }catch(e){ console.error('storage get failed', key, e); return null; }
+  }
+  async function sSet(key, value, shared){
+    try{
+      var res = await supabaseClient.from('kv_store').upsert({ key: key, value: value });
+      if(res.error) throw res.error;
+      return true;
+    }catch(e){ console.error('storage set failed', key, e); return false; }
+  }
+
+  async function loadAll(){
+    var u = await sGet('users', true);
+    var r = await sGet('rounds', true);
+    var p = await sGet('picks', true);
+    state.users = u || [];
+    state.rounds = r || [];
+    state.picks = p || {};
+    state.loaded = true;
+  }
+
+  function initials(name){
+    return name.trim().split(/\s+/).slice(0,2).map(function(w){return w[0]?w[0].toUpperCase():'';}).join('');
+  }
+
+  function outcome(h,a){ return h>a?'H':(h<a?'A':'D'); }
+
+  function pointsFor(pick, match){
+    if(!pick || match.homeGoals==null || match.awayGoals==null) return null;
+    if(pick.home===match.homeGoals && pick.away===match.awayGoals) return 5;
+    return outcome(pick.home,pick.away)===outcome(match.homeGoals,match.awayGoals) ? 3 : 0;
+  }
+
+  function normalizeName(s){
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+
+  function parseRoundWithGuesses(text){
+    var lines = text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+    if(lines.length===0) return null;
+    var matchRegex = /^(.+?)\s+(\d+)\s*[xX]\s*(\d+)\s+(.+)$/;
+    var name = lines[0];
+    var matchLines;
+    if(matchRegex.test(lines[0])){
+      matchLines = lines;
+      name = '';
+    } else {
+      matchLines = lines.slice(1);
+    }
+    var matches = [];
+    matchLines.forEach(function(line){
+      var m = line.match(matchRegex);
+      if(m){
+        matches.push({ home: m[1].trim(), homeGuess: parseInt(m[2],10), awayGuess: parseInt(m[3],10), away: m[4].trim() });
+      }
+    });
+    return { name: name.trim(), matches: matches };
+  }
+
+  function findOrCreateRound(parsedName, parsedMatches){
+    var teamKey = parsedMatches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
+    var round = null;
+    if(parsedName){
+      round = state.rounds.find(function(r){ return normalizeName(r.name)===normalizeName(parsedName); }) || null;
+    }
+    if(!round){
+      round = state.rounds.find(function(r){
+        var key = r.matches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
+        return key===teamKey;
+      }) || null;
+    }
+    if(round) return { round: round, created: false };
+    var newRound = {
+      id: uid(),
+      name: parsedName || ('Rodada '+(state.rounds.length+1)),
+      matches: parsedMatches.map(function(m){ return { id: uid(), home: m.home, away: m.away, homeGoals: null, awayGoals: null }; }),
+      createdAt: Date.now()
+    };
+    state.rounds.push(newRound);
+    return { round: newRound, created: true };
+  }
+
+  function buildPicksFromParsed(round, parsedMatches){
+    var picksObj = {};
+    var matched = 0;
+    parsedMatches.forEach(function(pm){
+      var match = round.matches.find(function(m){
+        return normalizeName(m.home)===normalizeName(pm.home) && normalizeName(m.away)===normalizeName(pm.away);
+      });
+      if(match){
+        picksObj[match.id] = { home: pm.homeGuess, away: pm.awayGuess };
+        matched++;
+      }
+    });
+    return { picksObj: picksObj, matched: matched };
+  }
+
+  function parseSinglePickText(text, matches){
+    var lines = text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+    var fullRegex = /^(.+?)\s+(\d+)\s*[xX]\s*(\d+)\s+(.+)$/;
+    var bareRegex = /^(\d+)\s*[xX]\s*(\d+)$/;
+    var byName = {};
+    var bareScores = [];
+    lines.forEach(function(line){
+      var bm = line.match(bareRegex);
+      if(bm){
+        bareScores.push([parseInt(bm[1],10), parseInt(bm[2],10)]);
+        return;
+      }
+      var fm = line.match(fullRegex);
+      if(fm){
+        var home = fm[1].trim(), hg = parseInt(fm[2],10), ag = parseInt(fm[3],10), away = fm[4].trim();
+        byName[normalizeName(home)+'|'+normalizeName(away)] = [hg, ag];
+      }
+    });
+    var result = [];
+    matches.forEach(function(m, idx){
+      var key = normalizeName(m.home)+'|'+normalizeName(m.away);
+      if(byName[key]){
+        result[idx] = byName[key];
+      } else if(bareScores[idx]){
+        result[idx] = bareScores[idx];
+      } else {
+        result[idx] = null;
+      }
+    });
+    return result;
+  }
+
+  async function callClaudeForResults(matches, roundName){
+    var response = await fetch('/api/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        matches: matches.map(function(m){ return { home: m.home, away: m.away }; }),
+        roundName: roundName
+      })
+    });
+    var data = await response.json();
+    if(!response.ok) throw new Error(data.error || 'Erro ao buscar resultados na API-Football.');
+    return data.results;
+  }
+
+  function roundIsFinished(round){
+    return round.matches.length>0 && round.matches.every(function(m){ return m.homeGoals!=null && m.awayGoals!=null; });
+  }
+
+  function computeRanking(){
+    var totals = {};
+    state.users.forEach(function(u){ totals[u.id] = {user:u, points:(u.startingPoints||0), exact:0, played:0}; });
+    state.rounds.forEach(function(round){
+      var finished = roundIsFinished(round);
+      if(!finished) return;
+      state.users.forEach(function(u){
+        var key = round.id+'_'+u.id;
+        var userPicks = state.picks[key] || {};
+        var participated = false;
+        round.matches.forEach(function(m){
+          var pick = userPicks[m.id];
+          var pts = pointsFor(pick, m);
+          if(pts!=null){
+            participated = true;
+            totals[u.id].points += pts;
+            if(pts===5) totals[u.id].exact += 1;
+          }
+        });
+        if(participated) totals[u.id].played += 1;
+      });
+    });
+    return Object.values(totals).sort(function(a,b){
+      if(b.points!==a.points) return b.points-a.points;
+      if(b.exact!==a.exact) return b.exact-a.exact;
+      return a.user.name.localeCompare(b.user.name);
+    });
+  }
+
+  function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
+  function confirmClick(btn, message, onConfirm){
+    if(btn.getAttribute('data-armed')==='1'){
+      clearTimeout(btn._armTimeout);
+      btn.removeAttribute('data-armed');
+      btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
+      onConfirm();
+      return;
+    }
+    btn.setAttribute('data-armed','1');
+    if(!btn.getAttribute('data-original-text')) btn.setAttribute('data-original-text', btn.textContent);
+    btn.textContent = message || 'Clique de novo para confirmar';
+    btn._armTimeout = setTimeout(function(){
+      btn.removeAttribute('data-armed');
+      btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
+    }, 4000);
+  }
+
+  function renderWho(){
+    var openRounds = state.rounds.filter(function(r){ return !roundIsFinished(r); }).length;
+    document.getElementById('roundCountLabel').textContent =
+      state.rounds.length + (state.rounds.length===1?' rodada cadastrada':' rodadas cadastradas') +
+      (openRounds>0 ? ' · '+openRounds+' em aberto' : '');
+  }
+
+  function renderRanking(){
+    var ranking = computeRanking();
+    var html = '<div class="card"><h2>Tabela de classificação</h2>';
+    if(state.users.length===0){
+      html += '<div class="empty">Nenhum jogador cadastrado ainda.<br>Vá em <b>Jogadores</b> para começar.</div>';
+    } else {
+      html += '<table class="rank"><thead><tr><th>Pos</th><th>Jogador</th><th>Pts</th><th>Rodadas</th><th>Cravadas</th></tr></thead><tbody>';
+      ranking.forEach(function(row, i){
+        var cls = i===0?'top1':(i===1?'top2':(i===2?'top3':''));
+        html += '<tr class="'+cls+'">'+
+          '<td><span class="pos">'+(i+1)+'º</span></td>'+
+          '<td class="name-cell">'+esc(row.user.name)+'</td>'+
+          '<td class="pts">'+row.points+'</td>'+
+          '<td class="muted">'+row.played+'</td>'+
+          '<td class="muted">'+row.exact+'</td>'+
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    html += '<div class="card"><h2>Como pontua</h2>'+
+      '<p class="muted" style="margin:0 0 6px;">Placar cravado (exato) <b style="color:var(--green-ok)">5 pts</b></p>'+
+      '<p class="muted" style="margin:0 0 6px;">Acertou só o resultado (vitória/empate) <b style="color:var(--floodlight)">3 pts</b></p>'+
+      '<p class="muted" style="margin:0;">Errou o resultado <b style="color:#f0906f">0 pts</b></p>'+
+      '</div>';
+    document.getElementById('main').innerHTML = html;
+  }
+
+  function renderJogadores(){
+    var html = '<div class="card"><h2>Jogadores cadastrados</h2>';
+    if(state.users.length===0){
+      html += '<p class="muted">Ainda não há jogadores. Cadastre o primeiro abaixo, ou eles entram automaticamente ao importar palpites do WhatsApp em Rodadas.</p>';
+    } else {
+      html += '<div>';
+      state.users.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(u){
+        html += '<span class="player-chip">'+
+          '<span class="avatar">'+esc(initials(u.name))+'</span>'+esc(u.name)+'</span>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><h2>Cadastrar jogador manualmente</h2>'+
+      '<div class="row"><input type="text" id="newUserName" placeholder="Nome do jogador" style="flex:1;min-width:180px;">'+
+      '<input type="number" id="newUserPts" placeholder="Pontos iniciais" style="width:130px;" value="0">'+
+      '<button class="btn" id="addUserBtn">Cadastrar</button></div>'+
+      '<p class="muted" style="margin:0 0 8px;">Pontos iniciais são para trazer uma pontuação que o jogador já tinha fora do site. Deixe 0 para jogadores novos.</p>'+
+      '<p class="muted" id="userMsg"></p>'+
+      '</div>';
+
+    if(state.users.length>0){
+      html += '<div class="card"><h2>Ajustar pontuação inicial</h2>'+
+        '<p class="muted" style="margin:0 0 10px;">Use aqui se precisar corrigir os pontos trazidos de fora do site para algum jogador.</p>';
+      state.users.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(u){
+        html += '<div class="row" data-edit-uid="'+u.id+'">'+
+          '<span style="flex:1;min-width:120px;">'+esc(u.name)+'</span>'+
+          '<input type="number" class="edit-pts-input" value="'+(u.startingPoints||0)+'">'+
+          '<button class="btn secondary save-pts-btn">Salvar</button>'+
+          '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="card"><h2>Manutenção</h2>'+
+      '<p class="muted" style="margin:0 0 10px;">Apaga todas as rodadas e palpites cadastrados e repõe a pontuação inicial oficial dos 23 jogadores da lista combinada.</p>'+
+      '<div class="row"><button class="btn danger" id="resetRoundsBtn">Repor pontuação oficial e limpar rodadas</button><span class="muted" id="resetMsg"></span></div>'+
+      '</div>';
+
+    document.getElementById('main').innerHTML = html;
+
+    document.querySelectorAll('.save-pts-btn').forEach(function(btn){
+      btn.onclick = async function(){
+        var row = btn.closest('[data-edit-uid]');
+        var userId = row.getAttribute('data-edit-uid');
+        var val = parseInt(row.querySelector('.edit-pts-input').value, 10);
+        if(isNaN(val)) val = 0;
+        var u = state.users.find(function(x){ return x.id===userId; });
+        if(!u) return;
+        u.startingPoints = val;
+        var ok = await sSet('users', state.users, true);
+        btn.textContent = ok ? 'Salvo!' : 'Erro';
+        setTimeout(function(){ btn.textContent = 'Salvar'; }, 1500);
+      };
+    });
+
+    document.getElementById('addUserBtn').onclick = async function(){
+      var input = document.getElementById('newUserName');
+      var name = input.value.trim();
+      var msg = document.getElementById('userMsg');
+      if(!name){ msg.textContent = 'Digite um nome.'; msg.style.color = '#f0906f'; return; }
+      if(state.users.some(function(u){ return u.name.toLowerCase()===name.toLowerCase(); })){
+        msg.textContent = 'Já existe um jogador com esse nome.'; msg.style.color = '#f0906f'; return;
+      }
+      var newUser = { id: uid(), name: name, startingPoints: (parseInt(document.getElementById('newUserPts').value,10) || 0), createdAt: Date.now() };
+      state.users.push(newUser);
+      var ok = await sSet('users', state.users, true);
+      if(!ok){ msg.textContent = 'Não foi possível salvar. Tente de novo.'; msg.style.color = '#f0906f'; return; }
+      input.value = '';
+      renderWho();
+      renderJogadores();
+    };
+
+    var resetBtn = document.getElementById('resetRoundsBtn');
+    if(resetBtn){
+      resetBtn.onclick = function(){
+        confirmClick(resetBtn, 'Clique de novo para confirmar', async function(){
+          var msg = document.getElementById('resetMsg');
+          msg.style.color = 'var(--chalk-dim)';
+          msg.textContent = 'Aplicando...';
+          var ok = await resetRoundsAndReseedPlayers();
+          msg.style.color = ok ? 'var(--green-ok)' : '#f0906f';
+          msg.textContent = ok ? 'Pronto! Rodadas limpas e pontuação inicial reposta.' : 'Erro ao aplicar. Tente novamente.';
+          renderWho();
+          renderJogadores();
+        });
+      };
+    }
+  }
+
+
+  var manualEditRounds = {};
+  var globalSelectedUserId = null;
+
+  function renderRodadas(){
+    var html = '<div class="card"><h2>Colar palpite</h2>'+
+      '<p class="muted" style="margin:0 0 8px;">Cole a mensagem do WhatsApp exatamente como a pessoa mandou, já com os placares dela:</p>'+
+      '<p class="muted" style="margin:0 0 8px;">Quem mandou esse palpite? Clique no nome:</p>'+
+      '<div style="margin-bottom:8px;">';
+    state.users.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(u){
+      var sel = globalSelectedUserId===u.id;
+      html += '<span class="player-chip pick-select-chip'+(sel?' selected':'')+'" data-user-id="'+u.id+'">'+
+        '<span class="avatar">'+esc(initials(u.name))+'</span>'+esc(u.name)+'</span>';
+    });
+    html += '</div>'+
+      '<div class="row" style="margin-bottom:10px;">'+
+      '<input type="text" id="globalNewPickerName" placeholder="Nome não está na lista? Digite aqui">'+
+      '<button class="btn secondary" id="globalAddPickerBtn">Adicionar e selecionar</button>'+
+      '</div>';
+    if(globalSelectedUserId){
+      var gUser = state.users.find(function(u){ return u.id===globalSelectedUserId; });
+      html += '<p class="muted" style="margin:0 0 6px;">Colando palpite de <b style="color:var(--floodlight)">'+esc(gUser?gUser.name:'')+'</b>:</p>'+
+        '<textarea id="globalPickText" placeholder="Cole os palpites aqui"></textarea>'+
+        '<div class="row" style="margin-top:8px;"><button class="btn" id="saveGlobalPickBtn">Salvar palpite e verificar rodada</button></div>';
+    } else {
+      html += '<p class="muted" style="margin:0;">Selecione quem mandou o palpite acima antes de colar a mensagem.</p>';
+    }
+    html += '<div class="import-status" id="globalPickMsg"></div>';
+    html += '</div>';
+
+    html += '<div class="card"><h2>Rodadas cadastradas</h2>';
+    if(state.rounds.length===0){
+      html += '<div class="empty">Nenhuma rodada criada ainda. Assim que você colar o primeiro palpite acima, a rodada aparece aqui automaticamente.</div>';
+    } else {
+      state.rounds.slice().reverse().forEach(function(round){
+        var finished = roundIsFinished(round);
+        var editing = !!manualEditRounds[round.id];
+        html += '<div style="margin-bottom:18px;" data-round-block="'+round.id+'">';
+        html += '<div class="round-header"><b>'+esc(round.name)+'</b><span class="round-tag '+(finished?'encerrada':'aberta')+'">'+(finished?'encerrada':'aberta')+'</span></div>';
+
+        round.matches.forEach(function(m){
+          var hasResult = m.homeGoals!=null && m.awayGoals!=null;
+          if(editing){
+            html += '<div class="match" data-result-match="'+m.id+'">'+
+              '<span class="team home">'+esc(m.home)+'</span>'+
+              '<span class="score-inputs">'+
+                '<input type="number" min="0" class="res-home" value="'+(m.homeGoals!=null?m.homeGoals:'')+'" placeholder="-">'+
+                '<span class="vs">x</span>'+
+                '<input type="number" min="0" class="res-away" value="'+(m.awayGoals!=null?m.awayGoals:'')+'" placeholder="-">'+
+              '</span>'+
+              '<span class="team away">'+esc(m.away)+'</span>'+
+              '</div>';
+          } else {
+            html += '<div class="match" data-result-match="'+m.id+'">'+
+              '<span class="team home">'+esc(m.home)+'</span>'+
+              (hasResult ? '<span class="result-tag">'+m.homeGoals+' x '+m.awayGoals+'</span>' : '<span class="vs">x</span>')+
+              '<span class="team away">'+esc(m.away)+'</span>'+
+              '</div>';
+          }
+        });
+
+        html += '<div class="row">';
+        if(editing){
+          html += '<button class="btn secondary save-result-btn" data-round-id="'+round.id+'">Salvar correções</button>'+
+            '<button class="btn secondary toggle-manual-btn" data-round-id="'+round.id+'">Ocultar edição manual</button>';
+        } else {
+          html += '<button class="btn finalize-btn" data-round-id="'+round.id+'">'+(finished?'Buscar resultados novamente':'Finalizar rodada (buscar resultados automaticamente)')+'</button>'+
+            '<button class="btn secondary toggle-manual-btn" data-round-id="'+round.id+'">Preencher/corrigir manualmente</button>';
+        }
+        html += '<button class="btn danger delete-round-btn" data-round-id="'+round.id+'">Excluir rodada</button>'+
+          '<span class="muted save-result-msg"></span></div>'+
+          '<div class="import-status ai-fetch-msg" data-round-id="'+round.id+'"></div>';
+
+        var registeredPickers = state.users.filter(function(u){
+          return !!state.picks[round.id+'_'+u.id];
+        }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+        html += '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);">';
+        if(registeredPickers.length===0){
+          html += '<p class="muted" style="margin:0;">Nenhum palpite registrado nesta rodada ainda.</p>';
+        } else {
+          html += '<p class="muted" style="margin:0 0 6px;">Palpites registrados nesta rodada:</p>';
+          registeredPickers.forEach(function(u){
+            html += '<div class="row" style="margin-bottom:4px;">'+
+              '<span style="flex:1;">'+esc(u.name)+'</span>'+
+              '<button class="btn danger remove-pick-btn" data-round-id="'+round.id+'" data-user-id="'+u.id+'">Remover palpite</button>'+
+              '</div>';
+          });
+        }
+        html += '</div>';
+        if(finished){
+          var roundScores = state.users.map(function(u){
+            var key = round.id+'_'+u.id;
+            var userPicks = state.picks[key];
+            if(!userPicks) return null;
+            var pts = 0, any = false;
+            round.matches.forEach(function(m){
+              var p = pointsFor(userPicks[m.id], m);
+              if(p!=null){ pts += p; any = true; }
+            });
+            return any ? { name: u.name, pts: pts } : null;
+          }).filter(Boolean).sort(function(a,b){ return b.pts-a.pts; });
+          if(roundScores.length>0){
+            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);">'+
+              '<p class="muted" style="margin:0 0 6px;">Pontos desta rodada:</p>';
+            roundScores.forEach(function(rs){
+              html += '<div class="row" style="margin-bottom:4px;"><span style="flex:1;">'+esc(rs.name)+'</span><span class="pts" style="font-size:14px;">'+rs.pts+' pts</span></div>';
+            });
+            html += '</div>';
+          }
+        }
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    document.getElementById('main').innerHTML = html;
+
+    document.querySelectorAll('.pick-select-chip').forEach(function(chip){
+      chip.onclick = function(){
+        globalSelectedUserId = chip.getAttribute('data-user-id');
+        renderRodadas();
+      };
+    });
+
+    var globalAddBtn = document.getElementById('globalAddPickerBtn');
+    if(globalAddBtn){
+      globalAddBtn.onclick = async function(){
+        var input = document.getElementById('globalNewPickerName');
+        var name = input.value.trim();
+        if(!name) return;
+        var user = state.users.find(function(u){ return normalizeName(u.name)===normalizeName(name); });
+        if(!user){
+          user = { id: uid(), name: name, startingPoints: 0, createdAt: Date.now() };
+          state.users.push(user);
+          await sSet('users', state.users, true);
+        }
+        globalSelectedUserId = user.id;
+        renderRodadas();
+      };
+    }
+
+    var saveGlobalBtn = document.getElementById('saveGlobalPickBtn');
+    if(saveGlobalBtn){
+      saveGlobalBtn.onclick = async function(){
+        var userId = globalSelectedUserId;
+        var user = state.users.find(function(u){ return u.id===userId; });
+        var msgEl = document.getElementById('globalPickMsg');
+        var textarea = document.getElementById('globalPickText');
+        if(!user){ return; }
+        var parsed = parseRoundWithGuesses(textarea.value);
+        if(!parsed || parsed.matches.length===0){
+          msgEl.style.color = '#f0906f';
+          msgEl.textContent = 'Não consegui identificar os jogos e placares nesse texto. Use o formato "Time 2 x 1 Time" em cada linha.';
+          return;
+        }
+
+        var result = findOrCreateRound(parsed.name, parsed.matches);
+        var round = result.round;
+        if(result.created){
+          await sSet('rounds', state.rounds, true);
+        }
+
+        var built = buildPicksFromParsed(round, parsed.matches);
+        var key = round.id+'_'+userId;
+        var existingPicks = state.picks[key] || {};
+        var mergedPicks = Object.assign({}, existingPicks, built.picksObj);
+        state.picks[key] = mergedPicks;
+        await sSet('picks', state.picks, true);
+
+        saveGlobalBtn.disabled = true;
+        var originalText = saveGlobalBtn.textContent;
+        saveGlobalBtn.textContent = 'Salvando e verificando...';
+        msgEl.style.color = 'var(--chalk-dim)';
+        msgEl.textContent = 'Palpite salvo em "'+round.name+'". Verificando o resultado real da rodada na internet...';
+
+        try{
+          var results = await callClaudeForResults(round.matches, round.name);
+          var updated = 0, notFound = 0;
+          round.matches.forEach(function(m, idx){
+            var found = results[idx];
+            if(!found){
+              found = results.find(function(r){
+                return normalizeName(r.home)===normalizeName(m.home) && normalizeName(r.away)===normalizeName(m.away);
+              });
+            }
+            if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
+              m.homeGoals = parseInt(found.homeGoals,10);
+              m.awayGoals = parseInt(found.awayGoals,10);
+              updated++;
+            } else {
+              notFound++;
+            }
+          });
+          await sSet('rounds', state.rounds, true);
+
+          var finishedNow = roundIsFinished(round);
+          var playerPts = 0;
+          if(finishedNow){
+            round.matches.forEach(function(m){
+              var p = pointsFor(mergedPicks[m.id], m);
+              if(p!=null) playerPts += p;
+            });
+          }
+
+          msgEl.style.color = 'var(--green-ok)';
+          msgEl.textContent = finishedNow
+            ? ('Palpite de '+user.name+' salvo em "'+round.name+'"! Rodada verificada: '+updated+' de '+round.matches.length+' jogos confirmados. '+user.name+' fez '+playerPts+' pts. Atualizando a classificação...')
+            : (updated+' de '+round.matches.length+' jogos confirmados até agora — '+notFound+' ainda sem resultado na internet. O palpite de '+user.name+' já está salvo e conta assim que todos forem confirmados.');
+
+          textarea.value = '';
+          globalSelectedUserId = null;
+          renderWho();
+          if(finishedNow){
+            setTimeout(function(){ setView('ranking'); }, 1300);
+          } else {
+            saveGlobalBtn.disabled = false;
+            saveGlobalBtn.textContent = originalText;
+            renderRodadas();
+          }
+        }catch(e){
+          console.error(e);
+          msgEl.style.color = '#f0906f';
+          msgEl.textContent = 'Palpite salvo, mas não consegui verificar os resultados agora. Tente de novo em instantes, ou use "Finalizar rodada" mais abaixo.';
+          saveGlobalBtn.disabled = false;
+          saveGlobalBtn.textContent = originalText;
+        }
+      };
+    }
+
+    document.querySelectorAll('.toggle-manual-btn').forEach(function(btn){
+      btn.onclick = function(){
+        var roundId = btn.getAttribute('data-round-id');
+        manualEditRounds[roundId] = !manualEditRounds[roundId];
+        renderRodadas();
+      };
+    });
+
+    document.querySelectorAll('.save-result-btn').forEach(function(btn){
+      btn.onclick = async function(){
+        var roundId = btn.getAttribute('data-round-id');
+        var round = state.rounds.find(function(r){ return r.id===roundId; });
+        var block = document.querySelector('[data-round-block="'+roundId+'"]');
+        var msg = block.querySelector('.save-result-msg');
+        block.querySelectorAll('.match').forEach(function(mEl){
+          var matchId = mEl.getAttribute('data-result-match');
+          var h = mEl.querySelector('.res-home').value;
+          var a = mEl.querySelector('.res-away').value;
+          var match = round.matches.find(function(m){ return m.id===matchId; });
+          if(h==='' || a===''){ match.homeGoals = null; match.awayGoals = null; }
+          else { match.homeGoals = parseInt(h,10); match.awayGoals = parseInt(a,10); }
+        });
+        var ok = await sSet('rounds', state.rounds, true);
+        msg.style.color = ok ? 'var(--green-ok)' : '#f0906f';
+        msg.textContent = ok ? 'Resultados salvos! Classificação atualizada.' : 'Erro ao salvar.';
+        renderWho();
+        if(ok && roundIsFinished(round)){
+          setTimeout(function(){ setView('ranking'); }, 900);
+        }
+      };
+    });
+
+    document.querySelectorAll('.finalize-btn').forEach(function(btn){
+      btn.onclick = async function(){
+        var roundId = btn.getAttribute('data-round-id');
+        var round = state.rounds.find(function(r){ return r.id===roundId; });
+        var msgEl = document.querySelector('.ai-fetch-msg[data-round-id="'+roundId+'"]');
+        btn.disabled = true;
+        var originalText = btn.textContent;
+        btn.textContent = 'Buscando resultados...';
+        msgEl.style.color = 'var(--chalk-dim)';
+        msgEl.textContent = 'Buscando na internet o resultado real de cada jogo desta rodada, isso pode levar alguns segundos...';
+        try{
+          var results = await callClaudeForResults(round.matches, round.name);
+          var updated = 0, notFound = 0;
+          round.matches.forEach(function(m, idx){
+            var found = results[idx];
+            if(!found){
+              found = results.find(function(r){
+                return normalizeName(r.home)===normalizeName(m.home) && normalizeName(r.away)===normalizeName(m.away);
+              });
+            }
+            if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
+              m.homeGoals = parseInt(found.homeGoals,10);
+              m.awayGoals = parseInt(found.awayGoals,10);
+              updated++;
+            } else {
+              notFound++;
+            }
+          });
+          var ok = await sSet('rounds', state.rounds, true);
+          var nowFinished = roundIsFinished(round);
+          if(!ok){
+            msgEl.style.color = '#f0906f';
+            msgEl.textContent = 'Encontrei os placares mas houve erro ao salvar. Tente novamente.';
+            btn.disabled = false; btn.textContent = originalText;
+          } else if(nowFinished){
+            msgEl.style.color = 'var(--green-ok)';
+            msgEl.textContent = 'Rodada finalizada! '+updated+' de '+round.matches.length+' jogo(s) confirmados. Atualizando a classificação...';
+            renderWho();
+            setTimeout(function(){ setView('ranking'); }, 1100);
+          } else {
+            msgEl.style.color = 'var(--floodlight)';
+            msgEl.textContent = updated+' de '+round.matches.length+' jogo(s) confirmados. '+notFound+' ainda sem resultado encontrado na internet — use "Preencher/corrigir manualmente" para completar e finalizar.';
+            btn.disabled = false; btn.textContent = originalText;
+            renderWho();
+            renderRodadas();
+          }
+        }catch(e){
+          console.error(e);
+          msgEl.style.color = '#f0906f';
+          msgEl.textContent = 'Não consegui buscar os resultados agora. Tente de novo ou use "Preencher/corrigir manualmente".';
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      };
+    });
+
+    document.querySelectorAll('.delete-round-btn').forEach(function(btn){
+      btn.onclick = function(){
+        confirmClick(btn, 'Clique de novo p/ excluir', async function(){
+          var roundId = btn.getAttribute('data-round-id');
+          state.rounds = state.rounds.filter(function(r){ return r.id!==roundId; });
+          Object.keys(state.picks).forEach(function(k){
+            if(k.indexOf(roundId+'_')===0) delete state.picks[k];
+          });
+          var okR = await sSet('rounds', state.rounds, true);
+          var okP = await sSet('picks', state.picks, true);
+          renderWho();
+          if(okR && okP){
+            setView('ranking');
+          } else {
+            renderRodadas();
+          }
+        });
+      };
+    });
+
+    document.querySelectorAll('.remove-pick-btn').forEach(function(btn){
+      btn.onclick = function(){
+        confirmClick(btn, 'Clique de novo p/ remover', async function(){
+          var roundId = btn.getAttribute('data-round-id');
+          var userId = btn.getAttribute('data-user-id');
+          var key = roundId+'_'+userId;
+          delete state.picks[key];
+          var ok = await sSet('picks', state.picks, true);
+          renderWho();
+          if(ok){
+            setView('ranking');
+          } else {
+            renderRodadas();
+          }
+        });
+      };
+    });
+  }
+
+  function setView(view){
+    state.view = view;
+    document.querySelectorAll('nav.tabs button').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-view')===view);
+    });
+    if(view==='ranking') renderRanking();
+    else if(view==='rodadas') renderRodadas();
+    else if(view==='jogadores') renderJogadores();
+  }
+
+  document.querySelectorAll('nav.tabs button').forEach(function(b){
+    b.onclick = function(){ setView(b.getAttribute('data-view')); };
+  });
+
+  (async function init(){
+    document.getElementById('main').innerHTML = '<div class="card"><div class="empty">Carregando bolão...</div></div>';
+    await loadAll();
+    await seedInitialPlayers();
+    renderWho();
+    setView('ranking');
+  })();
+})();
+</script>
+</body>
+</html>
