@@ -8,13 +8,13 @@
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
 
   :root{
-    --pitch-dark:#0B2E22;
-    --pitch-mid:#0F3B2B;
-    --stripe:#124531;
-    --card:#123726;
-    --card-2:#164231;
-    --chalk:#F4F1E7;
-    --chalk-dim:#B9C4B9;
+    --pitch-dark:#0F0F42;
+    --pitch-mid:#191970;
+    --stripe:#22228A;
+    --card:#181862;
+    --card-2:#1E1E78;
+    --chalk:#F1F1F8;
+    --chalk-dim:#B7B9DA;
     --floodlight:#FFC94D;
     --floodlight-dim:#8A6A22;
     --gold:#FFD166;
@@ -22,7 +22,7 @@
     --bronze:#D08A4E;
     --red-card:#E4572E;
     --green-ok:#6FCF97;
-    --line:rgba(244,241,231,0.12);
+    --line:rgba(241,241,248,0.14);
   }
 
   *{box-sizing:border-box;}
@@ -51,6 +51,14 @@
     pointer-events:none;
   }
   .board-inner{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .logo-img{
+    height:52px;
+    width:52px;
+    object-fit:cover;
+    border-radius:50%;
+    border:2px solid var(--floodlight);
+    flex-shrink:0;
+  }
   .title{
     font-family:'Bebas Neue',sans-serif;
     font-size:40px;
@@ -122,7 +130,7 @@
   }
   .muted{color:var(--chalk-dim);font-size:13px;}
   input[type=text], input[type=number], select, textarea{
-    background:#0C2A1E;
+    background:#101052;
     border:1px solid var(--line);
     color:var(--chalk);
     padding:9px 10px;
@@ -168,7 +176,6 @@
 
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
 
-  /* Ranking */
   table.rank{width:100%;border-collapse:collapse;}
   table.rank th{
     text-align:left;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;
@@ -188,7 +195,7 @@
 
   .match{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
-    background:#0C2A1E;
+    background:#101052;
     border:1px dashed var(--line);
     border-radius:8px;
     padding:10px 12px;
@@ -200,7 +207,7 @@
   .score-inputs{display:flex;align-items:center;gap:6px;}
   .result-tag{
     font-family:'Roboto Mono',monospace;font-size:13px;font-weight:700;color:var(--chalk);
-    background:#1c3d2c;padding:4px 10px;border-radius:5px;min-width:56px;text-align:center;
+    background:#242496;padding:4px 10px;border-radius:5px;min-width:56px;text-align:center;
   }
   .pts-tag{
     font-family:'Roboto Mono',monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;margin-left:8px;
@@ -239,10 +246,13 @@
 <div class="wrap">
   <header class="board">
     <div class="board-inner">
-      <div>
-        <p class="title">BOLÃO</p>
-        <p class="subtitle" style="margin-top:2px;">Brasileirão Série A 2026</p>
-        <p class="subtitle" id="roundCountLabel">carregando...</p>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="logo.jpg" alt="Logo do bolão" class="logo-img" onerror="this.style.display='none'">
+        <div>
+          <p class="title">BOLÃO</p>
+          <p class="subtitle" style="margin-top:2px;">Brasileirão Série A 2026</p>
+          <p class="subtitle" id="roundCountLabel">carregando...</p>
+        </div>
       </div>
       <div></div>
     </div>
@@ -510,7 +520,6 @@
       btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
     }, 4000);
   }
-
 
   function renderWho(){
     var openRounds = state.rounds.filter(function(r){ return !roundIsFinished(r); }).length;
