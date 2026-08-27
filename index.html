@@ -455,7 +455,7 @@
       })
     });
     var data = await response.json();
-    if(!response.ok) throw new Error(data.error || 'Erro ao buscar resultados na API-Football.');
+    if(!response.ok) throw new Error(data.error || 'Erro ao buscar resultados na football-data.org.');
     return data.results;
   }
 
@@ -511,7 +511,6 @@
     }, 4000);
   }
 
-  // ---------- Views ----------
 
   function renderWho(){
     var openRounds = state.rounds.filter(function(r){ return !roundIsFinished(r); }).length;
@@ -553,12 +552,14 @@
     if(state.users.length===0){
       html += '<p class="muted">Ainda não há jogadores. Cadastre o primeiro abaixo, ou eles entram automaticamente ao importar palpites do WhatsApp em Rodadas.</p>';
     } else {
-      html += '<div>';
       state.users.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(u){
-        html += '<span class="player-chip">'+
-          '<span class="avatar">'+esc(initials(u.name))+'</span>'+esc(u.name)+'</span>';
+        html += '<div class="row" style="margin-bottom:6px;" data-remove-user-id="'+u.id+'">'+
+          '<span class="player-chip" style="flex:1;">'+
+            '<span class="avatar">'+esc(initials(u.name))+'</span>'+esc(u.name)+
+          '</span>'+
+          '<button class="btn danger remove-user-btn" data-user-id="'+u.id+'">Remover jogador</button>'+
+          '</div>';
       });
-      html += '</div>';
     }
     html += '</div>';
 
@@ -589,6 +590,26 @@
       '</div>';
 
     document.getElementById('main').innerHTML = html;
+
+    document.querySelectorAll('.remove-user-btn').forEach(function(btn){
+      btn.onclick = function(){
+        confirmClick(btn, 'Clique de novo p/ remover', async function(){
+          var userId = btn.getAttribute('data-user-id');
+          state.users = state.users.filter(function(u){ return u.id!==userId; });
+          Object.keys(state.picks).forEach(function(k){
+            if(k.indexOf('_'+userId)===k.length-('_'+userId).length) delete state.picks[k];
+          });
+          var okUsers = await sSet('users', state.users, true);
+          var okPicks = await sSet('picks', state.picks, true);
+          renderWho();
+          if(okUsers && okPicks){
+            setView('ranking');
+          } else {
+            renderJogadores();
+          }
+        });
+      };
+    });
 
     document.querySelectorAll('.save-pts-btn').forEach(function(btn){
       btn.onclick = async function(){
