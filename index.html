@@ -504,6 +504,38 @@
 
   function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
 
+  function extractRoundLabel(round){
+    if(!round) return null;
+    var m = round.name.match(/(\d+)\s*ª/);
+    if(m) return m[1]+'ª RODADA';
+    return round.name;
+  }
+
+  function buildRankingText(roundLabel){
+    var ranking = computeRanking();
+    var lines = [];
+    lines.push(roundLabel ? ('CLASSIFICAÇÃO - '+roundLabel) : 'CLASSIFICAÇÃO');
+    ranking.forEach(function(row, i){
+      lines.push((i+1)+'. '+row.user.name+': '+row.points);
+    });
+    return lines.join('\n');
+  }
+
+  function getReferenceRoundForRanking(){
+    var ref = null;
+    if(lastFinalizedRoundId){
+      ref = state.rounds.find(function(r){ return r.id===lastFinalizedRoundId && roundIsFinished(r); }) || null;
+    }
+    if(!ref){
+      var finished = state.rounds.filter(roundIsFinished);
+      if(finished.length>0){
+        ref = finished.slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); })[0];
+      }
+    }
+    return ref;
+  }
+
+
   function confirmClick(btn, message, onConfirm){
     if(btn.getAttribute('data-armed')==='1'){
       clearTimeout(btn._armTimeout);
@@ -548,12 +580,41 @@
       html += '</tbody></table>';
     }
     html += '</div>';
+
+    if(state.users.length>0){
+      var refRound = getReferenceRoundForRanking();
+      var copyText = buildRankingText(refRound ? extractRoundLabel(refRound) : null);
+      html += '<div class="card"><h2>Compartilhar classificação</h2>'+
+        '<p class="muted" style="margin:0 0 8px;">Texto pronto para colar no grupo do WhatsApp:</p>'+
+        '<textarea id="rankingCopyText" readonly style="min-height:'+(Math.min(state.users.length,25)*22+40)+'px;">'+esc(copyText)+'</textarea>'+
+        '<div class="row" style="margin-top:8px;"><button class="btn" id="copyRankingBtn">Copiar texto</button><span class="muted" id="copyRankingMsg"></span></div>'+
+        '</div>';
+    }
+
     html += '<div class="card"><h2>Como pontua</h2>'+
       '<p class="muted" style="margin:0 0 6px;">Placar cravado (exato) <b style="color:var(--green-ok)">5 pts</b></p>'+
       '<p class="muted" style="margin:0 0 6px;">Acertou só o resultado (vitória/empate) <b style="color:var(--floodlight)">3 pts</b></p>'+
       '<p class="muted" style="margin:0;">Errou o resultado <b style="color:#f0906f">0 pts</b></p>'+
       '</div>';
     document.getElementById('main').innerHTML = html;
+
+    var copyBtn = document.getElementById('copyRankingBtn');
+    if(copyBtn){
+      copyBtn.onclick = async function(){
+        var textEl = document.getElementById('rankingCopyText');
+        var msgEl = document.getElementById('copyRankingMsg');
+        try{
+          await navigator.clipboard.writeText(textEl.value);
+          msgEl.style.color = 'var(--green-ok)';
+          msgEl.textContent = 'Copiado! Já pode colar no WhatsApp.';
+        }catch(e){
+          textEl.focus();
+          textEl.select();
+          msgEl.style.color = '#f0906f';
+          msgEl.textContent = 'Não copiei automaticamente — selecionei o texto pra você, use Ctrl+C (ou Cmd+C).';
+        }
+      };
+    }
   }
 
   function renderJogadores(){
@@ -671,6 +732,7 @@
 
 
   var manualEditRounds = {};
+  var lastFinalizedRoundId = null;
   var globalSelectedUserId = null;
 
   function renderRodadas(){
@@ -892,6 +954,7 @@
           globalSelectedUserId = null;
           renderWho();
           if(finishedNow){
+            lastFinalizedRoundId = round.id;
             setTimeout(function(){ setView('ranking'); }, 1300);
           } else {
             saveGlobalBtn.disabled = false;
@@ -938,6 +1001,7 @@
         msg.textContent = ok ? 'Resultados salvos! Classificação atualizada.' : 'Erro ao salvar.';
         renderWho();
         if(ok && roundIsFinished(round)){
+          lastFinalizedRoundId = round.id;
           setTimeout(function(){ setView('ranking'); }, 900);
         }
       };
@@ -980,6 +1044,7 @@
           } else if(nowFinished){
             msgEl.style.color = 'var(--green-ok)';
             msgEl.textContent = 'Rodada finalizada! '+updated+' de '+round.matches.length+' jogo(s) confirmados. Atualizando a classificação...';
+            lastFinalizedRoundId = round.id;
             renderWho();
             setTimeout(function(){ setView('ranking'); }, 1100);
           } else {
