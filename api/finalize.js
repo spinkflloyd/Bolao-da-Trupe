@@ -3,7 +3,9 @@ function normalize(s) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(sc|ec|fc|se|ac|aa|cr|efc)\b/g, '')
     .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -29,33 +31,14 @@ function teamsMatch(apiName, ourName) {
   return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
 }
 
-async function getBrasileiraoLeagueId(apiKey) {
-  if (process.env.API_FOOTBALL_LEAGUE_ID) {
-    return process.env.API_FOOTBALL_LEAGUE_ID;
-  }
-  var resp = await fetch('https://v3.football.api-sports.io/leagues?country=Brazil&type=League', {
-    headers: { 'x-apisports-key': apiKey }
-  });
-  var data = await resp.json();
-  var list = data.response || [];
-  var match = list.find(function (l) {
-    var n = (l.league.name || '').toLowerCase();
-    return n.indexOf('serie a') !== -1 || n.indexOf('série a') !== -1 || n.indexOf('brasileirao') !== -1 || n.indexOf('brasileirão') !== -1;
-  });
-  if (!match) {
-    throw new Error('Não encontrei o ID da Série A automaticamente. Defina API_FOOTBALL_LEAGUE_ID manualmente.');
-  }
-  return match.league.id;
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
   }
 
-  var apiKey = process.env.API_FOOTBALL_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'A variável de ambiente API_FOOTBALL_KEY não está configurada no servidor.' });
+  var token = process.env.FOOTBALL_DATA_TOKEN;
+  if (!token) {
+    return res.status(500).json({ error: 'A variável de ambiente FOOTBALL_DATA_TOKEN não está configurada no servidor.' });
   }
 
   var matches = (req.body && req.body.matches) || [];
@@ -63,31 +46,28 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Nenhum jogo informado.' });
   }
 
-  var season = new Date().getFullYear();
-
   try {
-    var leagueId = await getBrasileiraoLeagueId(apiKey);
+    var resp = await fetch('https://api.football-data.org/v4/competitions/BSA/matches', {
+      headers: { 'X-Auth-Token': token }
+    });
+    var data = await resp.json();
 
-    var fixturesResp = await fetch(
-      'https://v3.football.api-sports.io/fixtures?league=' + leagueId + '&season=' + season,
-      { headers: { 'x-apisports-key': apiKey } }
-    );
-    var fixturesData = await fixturesResp.json();
-    if (fixturesData.errors && Object.keys(fixturesData.errors).length > 0) {
-      return res.status(502).json({ error: 'A API-Football retornou um erro: ' + JSON.stringify(fixturesData.errors) });
+    if (!resp.ok) {
+      return res.status(502).json({ error: 'A football-data.org retornou um erro: ' + (data.message || JSON.stringify(data)) });
     }
-    var fixtures = fixturesData.response || [];
+
+    var apiMatches = data.matches || [];
 
     var results = matches.map(function (m) {
-      var found = fixtures.find(function (fx) {
-        return teamsMatch(fx.teams.home.name, m.home) && teamsMatch(fx.teams.away.name, m.away);
+      var found = apiMatches.find(function (fx) {
+        return teamsMatch(fx.homeTeam.name, m.home) && teamsMatch(fx.awayTeam.name, m.away);
       });
-      if (found && found.fixture.status.short === 'FT') {
+      if (found && found.status === 'FINISHED' && found.score && found.score.fullTime && found.score.fullTime.home != null) {
         return {
           home: m.home,
           away: m.away,
-          homeGoals: found.goals.home,
-          awayGoals: found.goals.away,
+          homeGoals: found.score.fullTime.home,
+          awayGoals: found.score.fullTime.away,
           status: 'finished'
         };
       }
@@ -97,6 +77,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ results: results });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: e.message || 'Erro ao consultar a API-Football.' });
+    return res.status(500).json({ error: e.message || 'Erro ao consultar a football-data.org.' });
   }
-}
+};

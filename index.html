@@ -186,7 +186,6 @@
   .pts{font-family:'Roboto Mono',monospace;font-weight:700;font-size:16px;color:var(--floodlight);}
   .name-cell{font-weight:600;}
 
-  /* Ticket-style match card */
   .match{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     background:#0C2A1E;
@@ -309,11 +308,8 @@
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
-  // ====== CONFIGURAÇÃO DO SUPABASE ======
-  // Preencha com os dados do SEU projeto Supabase (Project Settings > API):
   var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
-  // ========================================
   var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   async function sGet(key, shared){
@@ -417,8 +413,6 @@
     return { picksObj: picksObj, matched: matched };
   }
 
-  // Reconhece tanto "2x1" (placar puro) quanto "Fluminense 2 x 1 Remo" (com nome dos times),
-  // podendo inclusive vir com o cabeçalho da rodada junto — tudo isso é ignorado se não bater com nenhum padrão.
   function parseSinglePickText(text, matches){
     var lines = text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
     var fullRegex = /^(.+?)\s+(\d+)\s*[xX]\s*(\d+)\s+(.+)$/;
@@ -500,8 +494,6 @@
 
   function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
 
-  // Confirmação em 2 cliques, feita na própria página — o confirm() nativo do navegador
-  // não funciona no ambiente onde este site roda como artefato.
   function confirmClick(btn, message, onConfirm){
     if(btn.getAttribute('data-armed')==='1'){
       clearTimeout(btn._armTimeout);
