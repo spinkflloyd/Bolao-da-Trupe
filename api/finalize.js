@@ -1,10 +1,3 @@
-// Função serverless (Vercel) que busca os resultados reais das partidas
-// do Campeonato Brasileiro Série A na API-Football (api-sports.io) e
-// compara com os jogos informados pelo site.
-//
-// Configure a variável de ambiente API_FOOTBALL_KEY no painel da Vercel
-// com a chave gratuita obtida em https://dashboard.api-football.com
-
 function normalize(s) {
   return (s || '')
     .toLowerCase()
@@ -14,7 +7,6 @@ function normalize(s) {
     .trim();
 }
 
-// Apelidos comuns para bater o nome usado no bolão com o nome oficial da API
 var ALIASES = {
   'atletico mg': 'atletico mineiro',
   'atleticomg': 'atletico mineiro',
@@ -56,7 +48,7 @@ async function getBrasileiraoLeagueId(apiKey) {
   return match.league.id;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
   }
