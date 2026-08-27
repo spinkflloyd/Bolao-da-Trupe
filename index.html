@@ -309,7 +309,7 @@
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
-  var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co/rest/v1/';
+  var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
   var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
