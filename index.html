@@ -309,8 +309,11 @@
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
+  // ====== CONFIGURAÇÃO DO SUPABASE ======
+  // Preencha com os dados do SEU projeto Supabase (Project Settings > API):
   var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
+  // ========================================
   var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   async function sGet(key, shared){
@@ -414,6 +417,8 @@
     return { picksObj: picksObj, matched: matched };
   }
 
+  // Reconhece tanto "2x1" (placar puro) quanto "Fluminense 2 x 1 Remo" (com nome dos times),
+  // podendo inclusive vir com o cabeçalho da rodada junto — tudo isso é ignorado se não bater com nenhum padrão.
   function parseSinglePickText(text, matches){
     var lines = text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
     var fullRegex = /^(.+?)\s+(\d+)\s*[xX]\s*(\d+)\s+(.+)$/;
@@ -494,6 +499,9 @@
   }
 
   function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
+
+  // Confirmação em 2 cliques, feita na própria página — o confirm() nativo do navegador
+  // não funciona no ambiente onde este site roda como artefato.
   function confirmClick(btn, message, onConfirm){
     if(btn.getAttribute('data-armed')==='1'){
       clearTimeout(btn._armTimeout);
@@ -510,6 +518,8 @@
       btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
     }, 4000);
   }
+
+  // ---------- Views ----------
 
   function renderWho(){
     var openRounds = state.rounds.filter(function(r){ return !roundIsFinished(r); }).length;
@@ -796,7 +806,12 @@
         var result = findOrCreateRound(parsed.name, parsed.matches);
         var round = result.round;
         if(result.created){
-          await sSet('rounds', state.rounds, true);
+          var okRound = await sSet('rounds', state.rounds, true);
+          if(!okRound){
+            msgEl.style.color = '#f0906f';
+            msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
+            return;
+          }
         }
 
         var built = buildPicksFromParsed(round, parsed.matches);
@@ -804,7 +819,12 @@
         var existingPicks = state.picks[key] || {};
         var mergedPicks = Object.assign({}, existingPicks, built.picksObj);
         state.picks[key] = mergedPicks;
-        await sSet('picks', state.picks, true);
+        var okPicks = await sSet('picks', state.picks, true);
+        if(!okPicks){
+          msgEl.style.color = '#f0906f';
+          msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
+          return;
+        }
 
         saveGlobalBtn.disabled = true;
         var originalText = saveGlobalBtn.textContent;
@@ -858,10 +878,13 @@
           }
         }catch(e){
           console.error(e);
-          msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Palpite salvo, mas não consegui verificar os resultados agora. Tente de novo em instantes, ou use "Finalizar rodada" mais abaixo.';
-          saveGlobalBtn.disabled = false;
-          saveGlobalBtn.textContent = originalText;
+          renderWho();
+          renderRodadas();
+          var msgEl2 = document.getElementById('globalPickMsg');
+          if(msgEl2){
+            msgEl2.style.color = '#f0906f';
+            msgEl2.textContent = 'Palpite salvo, mas não consegui verificar os resultados agora. Erro: '+(e && e.message ? e.message : 'desconhecido')+'. A rodada e o palpite já estão salvos — use "Finalizar rodada" na lista abaixo para tentar de novo.';
+          }
         }
       };
     }
@@ -947,7 +970,7 @@
         }catch(e){
           console.error(e);
           msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui buscar os resultados agora. Tente de novo ou use "Preencher/corrigir manualmente".';
+          msgEl.textContent = 'Não consegui buscar os resultados agora. Erro: '+(e && e.message ? e.message : 'desconhecido')+'. Tente de novo ou use "Preencher/corrigir manualmente".';
           btn.disabled = false;
           btn.textContent = originalText;
         }
