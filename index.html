@@ -46,7 +46,7 @@
   header.board::before{
     content:"";
     position:absolute;inset:0;
-    background-image: radial-gradient(rgba(241,241,248,0.05) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(244,241,231,0.05) 1px, transparent 1px);
     background-size:6px 6px;
     pointer-events:none;
   }
@@ -176,7 +176,6 @@
 
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
 
-  /* Ranking */
   table.rank{width:100%;border-collapse:collapse;}
   table.rank th{
     text-align:left;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;
@@ -272,13 +271,50 @@
 (function(){
   var state = { users: [], rounds: [], picks: {}, view: 'ranking', loaded:false };
 
+
 var SEED_PLAYERS = [
-  ['Spinkfloyd',295],['Will',273],['Dudu',273],['Gokulandia',265],['Douglas',260],
-  ['Marlan',257],['Miguel',241],['Tairony',224],['Da Cruz',218],['Gusta',206],
-  ['Erikson',197],['Fabrício',145],['Andrey',127],['André',95],['Janderson',48],
-  ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Mylu',12],
-  ['Shiva',11],['Júlio',9],['João Felipe',8],['Emanoel',6]
+    ['Spinkfloyd',295],['Will',273],['Dudu',273],['Gokulandia',265],['Douglas',260],
+    ['Marlan',257],['Miguel',241],['Tairony',224],['Da Cruz',218],['Gusta',206],
+    ['Erikson',197],['Fabrício',145],['Andrey',127],['André',95],['Janderson',48],
+    ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Mylu',12],
+    ['Shiva',11],['Júlio',9],['João Felipe',8],['Emanoel',6]
 ];
+
+  async function seedInitialPlayers(){
+    var already = await sGet('seededPlayersV1', true);
+    if(already) return false;
+    var existingNames = state.users.map(function(u){ return u.name.toLowerCase(); });
+    var added = false;
+    SEED_PLAYERS.forEach(function(pair){
+      var name = pair[0], pts = pair[1];
+      if(existingNames.indexOf(name.toLowerCase())===-1){
+        state.users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() });
+        existingNames.push(name.toLowerCase());
+        added = true;
+      }
+    });
+    if(added) await sSet('users', state.users, true);
+    await sSet('seededPlayersV1', true, true);
+    return added;
+  }
+
+  async function resetRoundsAndReseedPlayers(){
+    state.rounds = [];
+    state.picks = {};
+    SEED_PLAYERS.forEach(function(pair){
+      var name = pair[0], pts = pair[1];
+      var user = state.users.find(function(u){ return normalizeName(u.name)===normalizeName(name); });
+      if(user){
+        user.startingPoints = pts;
+      } else {
+        state.users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() });
+      }
+    });
+    var okUsers = await sSet('users', state.users, true);
+    var okRounds = await sSet('rounds', state.rounds, true);
+    var okPicks = await sSet('picks', state.picks, true);
+    return okUsers && okRounds && okPicks;
+  }
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
@@ -299,52 +335,6 @@ var SEED_PLAYERS = [
       if(res.error) throw res.error;
       return true;
     }catch(e){ console.error('storage set failed', key, e); return false; }
-  }
-
-  // Busca a versão mais recente do banco, aplica só a mudança necessária (via mutateFn)
-  // e grava de volta — evita que uma aba desatualizada apague dados novos de outros dispositivos.
-  async function mutateShared(key, defaultValue, mutateFn){
-    var fresh = await sGet(key, true);
-    if(fresh==null) fresh = defaultValue;
-    var extra = mutateFn(fresh);
-    var ok = await sSet(key, fresh, true);
-    if(ok) state[key] = fresh;
-    return { ok: ok, data: fresh, extra: extra };
-  }
-
-  async function seedInitialPlayers(){
-    var already = await sGet('seededPlayersV1', true);
-    if(already) return false;
-    var added = false;
-    var res = await mutateShared('users', [], function(users){
-      var existingNames = users.map(function(u){ return u.name.toLowerCase(); });
-      SEED_PLAYERS.forEach(function(pair){
-        var name = pair[0], pts = pair[1];
-        if(existingNames.indexOf(name.toLowerCase())===-1){
-          users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() });
-          existingNames.push(name.toLowerCase());
-          added = true;
-        }
-      });
-    });
-    if(res.ok) await sSet('seededPlayersV1', true, true);
-    return added;
-  }
-
-  async function resetRoundsAndReseedPlayers(){
-    var usersRes = await mutateShared('users', [], function(users){
-      SEED_PLAYERS.forEach(function(pair){
-        var name = pair[0], pts = pair[1];
-        var u = users.find(function(x){ return normalizeName(x.name)===normalizeName(name); });
-        if(u){ u.startingPoints = pts; }
-        else { users.push({ id: uid(), name: name, startingPoints: pts, createdAt: Date.now() }); }
-      });
-    });
-    var okRounds = await sSet('rounds', [], true);
-    if(okRounds) state.rounds = [];
-    var okPicks = await sSet('picks', {}, true);
-    if(okPicks) state.picks = {};
-    return usersRes.ok && okRounds && okPicks;
   }
 
   async function loadAll(){
@@ -395,6 +385,29 @@ var SEED_PLAYERS = [
     return { name: name.trim(), matches: matches };
   }
 
+  function findOrCreateRound(parsedName, parsedMatches){
+    var teamKey = parsedMatches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
+    var round = null;
+    if(parsedName){
+      round = state.rounds.find(function(r){ return normalizeName(r.name)===normalizeName(parsedName); }) || null;
+    }
+    if(!round){
+      round = state.rounds.find(function(r){
+        var key = r.matches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
+        return key===teamKey;
+      }) || null;
+    }
+    if(round) return { round: round, created: false };
+    var newRound = {
+      id: uid(),
+      name: parsedName || ('Rodada '+(state.rounds.length+1)),
+      matches: parsedMatches.map(function(m){ return { id: uid(), home: m.home, away: m.away, homeGoals: null, awayGoals: null }; }),
+      createdAt: Date.now()
+    };
+    state.rounds.push(newRound);
+    return { round: newRound, created: true };
+  }
+
   function buildPicksFromParsed(round, parsedMatches){
     var picksObj = {};
     var matched = 0;
@@ -408,6 +421,38 @@ var SEED_PLAYERS = [
       }
     });
     return { picksObj: picksObj, matched: matched };
+  }
+
+  function parseSinglePickText(text, matches){
+    var lines = text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+    var fullRegex = /^(.+?)\s+(\d+)\s*[xX]\s*(\d+)\s+(.+)$/;
+    var bareRegex = /^(\d+)\s*[xX]\s*(\d+)$/;
+    var byName = {};
+    var bareScores = [];
+    lines.forEach(function(line){
+      var bm = line.match(bareRegex);
+      if(bm){
+        bareScores.push([parseInt(bm[1],10), parseInt(bm[2],10)]);
+        return;
+      }
+      var fm = line.match(fullRegex);
+      if(fm){
+        var home = fm[1].trim(), hg = parseInt(fm[2],10), ag = parseInt(fm[3],10), away = fm[4].trim();
+        byName[normalizeName(home)+'|'+normalizeName(away)] = [hg, ag];
+      }
+    });
+    var result = [];
+    matches.forEach(function(m, idx){
+      var key = normalizeName(m.home)+'|'+normalizeName(m.away);
+      if(byName[key]){
+        result[idx] = byName[key];
+      } else if(bareScores[idx]){
+        result[idx] = bareScores[idx];
+      } else {
+        result[idx] = null;
+      }
+    });
+    return result;
   }
 
   async function callClaudeForResults(matches, roundName){
@@ -461,9 +506,7 @@ var SEED_PLAYERS = [
 
   function extractRoundLabel(round){
     if(!round) return null;
-    var m = round.name.match(/(\d+)\s*[ºªoa]?\.?\s*rodada/i);
-    if(m) return m[1]+'ª RODADA';
-    m = round.name.match(/rodada\s*[nº°]?\.?\s*(\d+)/i);
+    var m = round.name.match(/(\d+)\s*ª/);
     if(m) return m[1]+'ª RODADA';
     return round.name;
   }
@@ -492,6 +535,7 @@ var SEED_PLAYERS = [
     return ref;
   }
 
+
   function confirmClick(btn, message, onConfirm){
     if(btn.getAttribute('data-armed')==='1'){
       clearTimeout(btn._armTimeout);
@@ -508,8 +552,6 @@ var SEED_PLAYERS = [
       btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
     }, 4000);
   }
-
-  // ---------- Views ----------
 
   function renderWho(){
     var openRounds = state.rounds.filter(function(r){ return !roundIsFinished(r); }).length;
@@ -623,17 +665,14 @@ var SEED_PLAYERS = [
       btn.onclick = function(){
         confirmClick(btn, 'Clique de novo p/ remover', async function(){
           var userId = btn.getAttribute('data-user-id');
-          var usersRes = await mutateShared('users', [], function(users){
-            var idx = users.findIndex(function(u){ return u.id===userId; });
-            if(idx>-1) users.splice(idx,1);
+          state.users = state.users.filter(function(u){ return u.id!==userId; });
+          Object.keys(state.picks).forEach(function(k){
+            if(k.indexOf('_'+userId)===k.length-('_'+userId).length) delete state.picks[k];
           });
-          var picksRes = await mutateShared('picks', {}, function(picks){
-            Object.keys(picks).forEach(function(k){
-              if(k.indexOf('_'+userId)===k.length-('_'+userId).length) delete picks[k];
-            });
-          });
+          var okUsers = await sSet('users', state.users, true);
+          var okPicks = await sSet('picks', state.picks, true);
           renderWho();
-          if(usersRes.ok && picksRes.ok){
+          if(okUsers && okPicks){
             setView('ranking');
           } else {
             renderJogadores();
@@ -648,11 +687,11 @@ var SEED_PLAYERS = [
         var userId = row.getAttribute('data-edit-uid');
         var val = parseInt(row.querySelector('.edit-pts-input').value, 10);
         if(isNaN(val)) val = 0;
-        var res = await mutateShared('users', [], function(users){
-          var u = users.find(function(x){ return x.id===userId; });
-          if(u) u.startingPoints = val;
-        });
-        btn.textContent = res.ok ? 'Salvo!' : 'Erro';
+        var u = state.users.find(function(x){ return x.id===userId; });
+        if(!u) return;
+        u.startingPoints = val;
+        var ok = await sSet('users', state.users, true);
+        btn.textContent = ok ? 'Salvo!' : 'Erro';
         setTimeout(function(){ btn.textContent = 'Salvar'; }, 1500);
       };
     });
@@ -662,18 +701,13 @@ var SEED_PLAYERS = [
       var name = input.value.trim();
       var msg = document.getElementById('userMsg');
       if(!name){ msg.textContent = 'Digite um nome.'; msg.style.color = '#f0906f'; return; }
-      var ptsVal = parseInt(document.getElementById('newUserPts').value,10) || 0;
-      var res = await mutateShared('users', [], function(users){
-        if(users.some(function(u){ return u.name.toLowerCase()===name.toLowerCase(); })){
-          return { duplicate: true };
-        }
-        users.push({ id: uid(), name: name, startingPoints: ptsVal, createdAt: Date.now() });
-        return { duplicate: false };
-      });
-      if(res.extra && res.extra.duplicate){
+      if(state.users.some(function(u){ return u.name.toLowerCase()===name.toLowerCase(); })){
         msg.textContent = 'Já existe um jogador com esse nome.'; msg.style.color = '#f0906f'; return;
       }
-      if(!res.ok){ msg.textContent = 'Não foi possível salvar. Tente de novo.'; msg.style.color = '#f0906f'; return; }
+      var newUser = { id: uid(), name: name, startingPoints: (parseInt(document.getElementById('newUserPts').value,10) || 0), createdAt: Date.now() };
+      state.users.push(newUser);
+      var ok = await sSet('users', state.users, true);
+      if(!ok){ msg.textContent = 'Não foi possível salvar. Tente de novo.'; msg.style.color = '#f0906f'; return; }
       input.value = '';
       renderWho();
       renderJogadores();
@@ -696,9 +730,10 @@ var SEED_PLAYERS = [
     }
   }
 
+
   var manualEditRounds = {};
-  var globalSelectedUserId = null;
   var lastFinalizedRoundId = null;
+  var globalSelectedUserId = null;
 
   function renderRodadas(){
     var html = '<div class="card"><h2>Colar palpite</h2>'+
@@ -826,14 +861,13 @@ var SEED_PLAYERS = [
         var input = document.getElementById('globalNewPickerName');
         var name = input.value.trim();
         if(!name) return;
-        var res = await mutateShared('users', [], function(users){
-          var existing = users.find(function(u){ return normalizeName(u.name)===normalizeName(name); });
-          if(existing) return { user: existing };
-          var newUser = { id: uid(), name: name, startingPoints: 0, createdAt: Date.now() };
-          users.push(newUser);
-          return { user: newUser };
-        });
-        if(res.ok && res.extra){ globalSelectedUserId = res.extra.user.id; }
+        var user = state.users.find(function(u){ return normalizeName(u.name)===normalizeName(name); });
+        if(!user){
+          user = { id: uid(), name: name, startingPoints: 0, createdAt: Date.now() };
+          state.users.push(user);
+          await sSet('users', state.users, true);
+        }
+        globalSelectedUserId = user.id;
         renderRodadas();
       };
     }
@@ -853,48 +887,28 @@ var SEED_PLAYERS = [
           return;
         }
 
-        var roundRes = await mutateShared('rounds', [], function(rounds){
-          var teamKey = parsed.matches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
-          var found = null;
-          if(parsed.name){
-            found = rounds.find(function(r){ return normalizeName(r.name)===normalizeName(parsed.name); }) || null;
+        var result = findOrCreateRound(parsed.name, parsed.matches);
+        var round = result.round;
+        if(result.created){
+          var okRound = await sSet('rounds', state.rounds, true);
+          if(!okRound){
+            msgEl.style.color = '#f0906f';
+            msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
+            return;
           }
-          if(!found){
-            found = rounds.find(function(r){
-              var key = r.matches.map(function(m){ return normalizeName(m.home)+'|'+normalizeName(m.away); }).sort().join(',');
-              return key===teamKey;
-            }) || null;
-          }
-          if(found) return { round: found };
-          var newRound = {
-            id: uid(),
-            name: parsed.name || ('Rodada '+(rounds.length+1)),
-            matches: parsed.matches.map(function(m){ return { id: uid(), home: m.home, away: m.away, homeGoals: null, awayGoals: null }; }),
-            createdAt: Date.now()
-          };
-          rounds.push(newRound);
-          return { round: newRound };
-        });
-
-        if(!roundRes.ok){
-          msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
-          return;
         }
-        var round = roundRes.extra.round;
 
         var built = buildPicksFromParsed(round, parsed.matches);
-        var picksRes = await mutateShared('picks', {}, function(picks){
-          var key = round.id+'_'+userId;
-          var existingPicks = picks[key] || {};
-          picks[key] = Object.assign({}, existingPicks, built.picksObj);
-        });
-        if(!picksRes.ok){
+        var key = round.id+'_'+userId;
+        var existingPicks = state.picks[key] || {};
+        var mergedPicks = Object.assign({}, existingPicks, built.picksObj);
+        state.picks[key] = mergedPicks;
+        var okPicks = await sSet('picks', state.picks, true);
+        if(!okPicks){
           msgEl.style.color = '#f0906f';
           msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
           return;
         }
-        var mergedPicks = picksRes.data[round.id+'_'+userId];
 
         saveGlobalBtn.disabled = true;
         var originalText = saveGlobalBtn.textContent;
@@ -904,36 +918,24 @@ var SEED_PLAYERS = [
 
         try{
           var results = await callClaudeForResults(round.matches, round.name);
-
-          var finalizeRes = await mutateShared('rounds', [], function(rounds){
-            var r = rounds.find(function(x){ return x.id===round.id; });
-            if(!r) return { missing: true };
-            var updated = 0, notFound = 0;
-            r.matches.forEach(function(m, idx){
-              var found = results[idx];
-              if(!found){
-                found = results.find(function(rr){
-                  return normalizeName(rr.home)===normalizeName(m.home) && normalizeName(rr.away)===normalizeName(m.away);
-                });
-              }
-              if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
-                m.homeGoals = parseInt(found.homeGoals,10);
-                m.awayGoals = parseInt(found.awayGoals,10);
-                updated++;
-              } else {
-                notFound++;
-              }
-            });
-            return { round: r, updated: updated, notFound: notFound };
+          var updated = 0, notFound = 0;
+          round.matches.forEach(function(m, idx){
+            var found = results[idx];
+            if(!found){
+              found = results.find(function(r){
+                return normalizeName(r.home)===normalizeName(m.home) && normalizeName(r.away)===normalizeName(m.away);
+              });
+            }
+            if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
+              m.homeGoals = parseInt(found.homeGoals,10);
+              m.awayGoals = parseInt(found.awayGoals,10);
+              updated++;
+            } else {
+              notFound++;
+            }
           });
+          await sSet('rounds', state.rounds, true);
 
-          if(!finalizeRes.ok || (finalizeRes.extra && finalizeRes.extra.missing)){
-            throw new Error('Não consegui salvar os resultados encontrados.');
-          }
-
-          round = finalizeRes.extra.round;
-          var updated = finalizeRes.extra.updated;
-          var notFound = finalizeRes.extra.notFound;
           var finishedNow = roundIsFinished(round);
           var playerPts = 0;
           if(finishedNow){
@@ -983,29 +985,23 @@ var SEED_PLAYERS = [
     document.querySelectorAll('.save-result-btn').forEach(function(btn){
       btn.onclick = async function(){
         var roundId = btn.getAttribute('data-round-id');
+        var round = state.rounds.find(function(r){ return r.id===roundId; });
         var block = document.querySelector('[data-round-block="'+roundId+'"]');
         var msg = block.querySelector('.save-result-msg');
-        var localEdits = {};
         block.querySelectorAll('.match').forEach(function(mEl){
           var matchId = mEl.getAttribute('data-result-match');
           var h = mEl.querySelector('.res-home').value;
           var a = mEl.querySelector('.res-away').value;
-          localEdits[matchId] = (h===''||a==='') ? {homeGoals:null, awayGoals:null} : {homeGoals: parseInt(h,10), awayGoals: parseInt(a,10)};
+          var match = round.matches.find(function(m){ return m.id===matchId; });
+          if(h==='' || a===''){ match.homeGoals = null; match.awayGoals = null; }
+          else { match.homeGoals = parseInt(h,10); match.awayGoals = parseInt(a,10); }
         });
-        var res = await mutateShared('rounds', [], function(rounds){
-          var r = rounds.find(function(x){ return x.id===roundId; });
-          if(!r) return { missing: true };
-          r.matches.forEach(function(m){
-            var edit = localEdits[m.id];
-            if(edit){ m.homeGoals = edit.homeGoals; m.awayGoals = edit.awayGoals; }
-          });
-          return { round: r };
-        });
-        msg.style.color = res.ok ? 'var(--green-ok)' : '#f0906f';
-        msg.textContent = res.ok ? 'Resultados salvos! Classificação atualizada.' : 'Erro ao salvar.';
+        var ok = await sSet('rounds', state.rounds, true);
+        msg.style.color = ok ? 'var(--green-ok)' : '#f0906f';
+        msg.textContent = ok ? 'Resultados salvos! Classificação atualizada.' : 'Erro ao salvar.';
         renderWho();
-        if(res.ok && res.extra && res.extra.round && roundIsFinished(res.extra.round)){
-          lastFinalizedRoundId = roundId;
+        if(ok && roundIsFinished(round)){
+          lastFinalizedRoundId = round.id;
           setTimeout(function(){ setView('ranking'); }, 900);
         }
       };
@@ -1023,47 +1019,37 @@ var SEED_PLAYERS = [
         msgEl.textContent = 'Buscando na internet o resultado real de cada jogo desta rodada, isso pode levar alguns segundos...';
         try{
           var results = await callClaudeForResults(round.matches, round.name);
-          var res = await mutateShared('rounds', [], function(rounds){
-            var r = rounds.find(function(x){ return x.id===roundId; });
-            if(!r) return { missing: true };
-            var updated = 0, notFound = 0;
-            r.matches.forEach(function(m, idx){
-              var found = results[idx];
-              if(!found){
-                found = results.find(function(rr){
-                  return normalizeName(rr.home)===normalizeName(m.home) && normalizeName(rr.away)===normalizeName(m.away);
-                });
-              }
-              if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
-                m.homeGoals = parseInt(found.homeGoals,10);
-                m.awayGoals = parseInt(found.awayGoals,10);
-                updated++;
-              } else {
-                notFound++;
-              }
-            });
-            return { round: r, updated: updated, notFound: notFound };
+          var updated = 0, notFound = 0;
+          round.matches.forEach(function(m, idx){
+            var found = results[idx];
+            if(!found){
+              found = results.find(function(r){
+                return normalizeName(r.home)===normalizeName(m.home) && normalizeName(r.away)===normalizeName(m.away);
+              });
+            }
+            if(found && found.status==='finished' && found.homeGoals!=null && found.awayGoals!=null){
+              m.homeGoals = parseInt(found.homeGoals,10);
+              m.awayGoals = parseInt(found.awayGoals,10);
+              updated++;
+            } else {
+              notFound++;
+            }
           });
-
-          if(!res.ok || (res.extra && res.extra.missing)){
+          var ok = await sSet('rounds', state.rounds, true);
+          var nowFinished = roundIsFinished(round);
+          if(!ok){
             msgEl.style.color = '#f0906f';
             msgEl.textContent = 'Encontrei os placares mas houve erro ao salvar. Tente novamente.';
             btn.disabled = false; btn.textContent = originalText;
-            return;
-          }
-          var r = res.extra.round;
-          var updated = res.extra.updated;
-          var notFound = res.extra.notFound;
-          var nowFinished = roundIsFinished(r);
-          if(nowFinished){
+          } else if(nowFinished){
             msgEl.style.color = 'var(--green-ok)';
-            msgEl.textContent = 'Rodada finalizada! '+updated+' de '+r.matches.length+' jogo(s) confirmados. Atualizando a classificação...';
-            lastFinalizedRoundId = r.id;
+            msgEl.textContent = 'Rodada finalizada! '+updated+' de '+round.matches.length+' jogo(s) confirmados. Atualizando a classificação...';
+            lastFinalizedRoundId = round.id;
             renderWho();
             setTimeout(function(){ setView('ranking'); }, 1100);
           } else {
             msgEl.style.color = 'var(--floodlight)';
-            msgEl.textContent = updated+' de '+r.matches.length+' jogo(s) confirmados. '+notFound+' ainda sem resultado encontrado na internet — use "Preencher/corrigir manualmente" para completar e finalizar.';
+            msgEl.textContent = updated+' de '+round.matches.length+' jogo(s) confirmados. '+notFound+' ainda sem resultado encontrado na internet — use "Preencher/corrigir manualmente" para completar e finalizar.';
             btn.disabled = false; btn.textContent = originalText;
             renderWho();
             renderRodadas();
@@ -1082,17 +1068,14 @@ var SEED_PLAYERS = [
       btn.onclick = function(){
         confirmClick(btn, 'Clique de novo p/ excluir', async function(){
           var roundId = btn.getAttribute('data-round-id');
-          var roundsRes = await mutateShared('rounds', [], function(rounds){
-            var idx = rounds.findIndex(function(r){ return r.id===roundId; });
-            if(idx>-1) rounds.splice(idx,1);
+          state.rounds = state.rounds.filter(function(r){ return r.id!==roundId; });
+          Object.keys(state.picks).forEach(function(k){
+            if(k.indexOf(roundId+'_')===0) delete state.picks[k];
           });
-          var picksRes = await mutateShared('picks', {}, function(picks){
-            Object.keys(picks).forEach(function(k){
-              if(k.indexOf(roundId+'_')===0) delete picks[k];
-            });
-          });
+          var okR = await sSet('rounds', state.rounds, true);
+          var okP = await sSet('picks', state.picks, true);
           renderWho();
-          if(roundsRes.ok && picksRes.ok){
+          if(okR && okP){
             setView('ranking');
           } else {
             renderRodadas();
@@ -1106,11 +1089,11 @@ var SEED_PLAYERS = [
         confirmClick(btn, 'Clique de novo p/ remover', async function(){
           var roundId = btn.getAttribute('data-round-id');
           var userId = btn.getAttribute('data-user-id');
-          var res = await mutateShared('picks', {}, function(picks){
-            delete picks[roundId+'_'+userId];
-          });
+          var key = roundId+'_'+userId;
+          delete state.picks[key];
+          var ok = await sSet('picks', state.picks, true);
           renderWho();
-          if(res.ok){
+          if(ok){
             setView('ranking');
           } else {
             renderRodadas();
