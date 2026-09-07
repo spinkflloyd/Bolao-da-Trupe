@@ -272,13 +272,13 @@
 (function(){
   var state = { users: [], rounds: [], picks: {}, view: 'ranking', loaded:false };
 
-  var SEED_PLAYERS = [
-    ['Da Cruz',187],['Marlan',185],['Dudu',184],['Spinkfloyd',181],['Gokulandia',165],
-    ['Will',161],['Miguel',152],['Tairony',148],['Douglas',140],['Erikson',122],
-    ['Gusta',121],['Andrey',109],['André',95],['Fabrício',77],['Janderson',31],
-    ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Shiva',11],
-    ['Júlio',9],['João Felipe',8],['Emanoel',6]
-  ];
+var SEED_PLAYERS = [
+  ['Spinkfloyd',295],['Will',273],['Dudu',273],['Gokulandia',265],['Douglas',260],
+  ['Marlan',257],['Miguel',241],['Tairony',224],['Da Cruz',218],['Gusta',206],
+  ['Erikson',197],['Fabrício',145],['Andrey',127],['André',95],['Janderson',48],
+  ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Mylu',12],
+  ['Shiva',11],['Júlio',9],['João Felipe',8],['Emanoel',6]
+];
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
