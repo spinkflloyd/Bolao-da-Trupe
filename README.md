@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚽ Bolão da Trupe 🏆
+# ⚽ Bolão da Trupe 👻
 
 ---
 
