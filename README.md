@@ -8,6 +8,8 @@
 
 Site feito para gerenciar o bolão do Brasileirão do meu grupo de amigos. Utiliza **HTML, CSS e JavaScript**, com **banco de dados** para armazenar palpites e classificação, além de **integração com uma API** para buscar automaticamente os resultados e atualizar a pontuação.
 
+<div align="left">
+
 ## ✨ Funcionalidades
 
 - 📋 **Classificação ao vivo:** tabela com posição, pontos, rodadas disputadas e placares cravados, com destaque para o pódio 🥇🥈🥉
@@ -17,6 +19,8 @@ Site feito para gerenciar o bolão do Brasileirão do meu grupo de amigos. Utili
 - 📤 **Classificação pronta para compartilhar:** gera o texto da tabela para colar no grupo
 - 👥 **Gestão de jogadores:** cadastro, remoção e ajuste da pontuação inicial
 - ✍️ **Correção manual:** dá para preencher ou corrigir um resultado à mão quando precisar
+
+<div align="center">
 
 ## 🎯 Como pontua
 
