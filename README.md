@@ -38,6 +38,6 @@ Site feito para gerenciar o bolão do Brasileirão do meu grupo de amigos. Utili
 |---|---|
 | Front-end | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) |
 | Back-end | ![Vercel Functions](https://img.shields.io/badge/Vercel_Functions-000000?style=for-the-badge&logo=vercel&logoColor=white) |
-| Banco de dados | ![Neon](https://img.shields.io/badge/Neon_Postgres-00E599?style=for-the-badge&logo=postgresql&logoColor=black) |
+| Banco de dados | ![Neon](https://img.shields.io/badge/Neon-00E599?style=for-the-badge&logo=neon&logoColor=black) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)  |
 | Resultados das partidas | ![football-data.org](https://img.shields.io/badge/football--data.org-API-2E7D32?style=for-the-badge) |
 | Hospedagem | ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white) com deploy automático a cada push na `main` |
