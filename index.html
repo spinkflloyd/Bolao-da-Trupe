@@ -221,7 +221,6 @@
   ::-webkit-scrollbar{height:6px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -262,29 +261,49 @@
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
-  var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co';
-  var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
-  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // O navegador conversa com a API do próprio projeto na Vercel.
+  // A conexão com o Neon fica somente no backend (api/kv.mjs).
+  var ALLOWED_KEYS = ['users', 'rounds', 'picks', 'seededPlayersV1'];
 
   async function sGet(key, shared){
-    try{
-      var res = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
-      if(res.error) throw res.error;
-      return res.data ? res.data.value : null;
-    }catch(e){ console.error('storage get failed', key, e); return null; }
+    if (ALLOWED_KEYS.indexOf(key) === -1) throw new Error('Chave de armazenamento não permitida: ' + key);
+    var response = await fetch('/api/kv?key=' + encodeURIComponent(key), { cache: 'no-store' });
+    var data;
+    try { data = await response.json(); }
+    catch (_) { throw new Error('A API retornou uma resposta inválida ao buscar ' + key + '.'); }
+    if (!response.ok) throw new Error(data.error || ('Erro HTTP ' + response.status + ' ao buscar ' + key + '.'));
+    return data.value == null ? null : data.value;
   }
+
   async function sSet(key, value, shared){
     try{
-      var res = await supabaseClient.from('kv_store').upsert({ key: key, value: value });
-      if(res.error) throw res.error;
-      return true;
-    }catch(e){ console.error('storage set failed', key, e); return false; }
+      if (ALLOWED_KEYS.indexOf(key) === -1) throw new Error('Chave de armazenamento não permitida: ' + key);
+      var response = await fetch('/api/kv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, value: value })
+      });
+      var data;
+      try { data = await response.json(); }
+      catch (_) { throw new Error('A API retornou uma resposta inválida ao salvar ' + key + '.'); }
+      if (!response.ok) throw new Error(data.error || ('Erro HTTP ' + response.status + ' ao salvar ' + key + '.'));
+      return data.ok === true;
+    }catch(e){
+      console.error('Erro ao salvar no Neon:', key, e);
+      return false;
+    }
   }
 
   // Busca a versão mais recente do banco, aplica só a mudança necessária (via mutateFn)
   // e grava de volta — evita que uma aba desatualizada apague dados novos de outros dispositivos.
   async function mutateShared(key, defaultValue, mutateFn){
-    var fresh = await sGet(key, true);
+    var fresh;
+    try {
+      fresh = await sGet(key, true);
+    } catch(e) {
+      console.error('Erro ao ler antes de atualizar:', key, e);
+      return { ok: false, data: null, extra: null };
+    }
     if(fresh==null) fresh = defaultValue;
     var extra = mutateFn(fresh);
     var ok = await sSet(key, fresh, true);
@@ -923,7 +942,7 @@
 
         if(!roundRes.ok){
           msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
+          msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a API /api/kv está funcionando e se a variável DATABASE_URL está configurada na Vercel.';
           return;
         }
         var round = roundRes.extra.round;
@@ -936,7 +955,7 @@
         });
         if(!picksRes.ok){
           msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
+          msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Confira se a API /api/kv está funcionando e se a variável DATABASE_URL está configurada na Vercel.';
           return;
         }
         var mergedPicks = picksRes.data[round.id+'_'+userId];
@@ -1181,11 +1200,17 @@
   });
 
   (async function init(){
-    document.getElementById('main').innerHTML = '<div class="card"><div class="empty">Carregando bolão...</div></div>';
-    await loadAll();
-    await seedInitialPlayers();
-    renderWho();
-    setView('ranking');
+    var main = document.getElementById('main');
+    main.innerHTML = '<div class="card"><div class="empty">Carregando bolão...</div></div>';
+    try {
+      await loadAll();
+      await seedInitialPlayers();
+      renderWho();
+      setView('ranking');
+    } catch(e) {
+      console.error('Erro ao carregar o bolão:', e);
+      main.innerHTML = '<div class="card"><div class="empty">Não foi possível carregar os dados do bolão. Verifique a API /api/kv e a variável DATABASE_URL na Vercel e recarregue a página.</div></div>';
+    }
   })();
 })();
 </script>

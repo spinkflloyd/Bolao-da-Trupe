@@ -1,46 +1,58 @@
 import { neon } from '@neondatabase/serverless';
 
-// Só estas chaves podem ser lidas/gravadas (as que o bolão usa).
 const ALLOWED_KEYS = new Set(['users', 'rounds', 'picks', 'seededPlayersV1']);
 
+function send(res, status, body) {
+  res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.end(JSON.stringify(body));
+}
+
 export default async function handler(req, res) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    return send(res, 405, { error: 'Método não permitido.' });
+  }
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return send(res, 500, { error: 'A variável DATABASE_URL não está configurada na Vercel.' });
+  }
+
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'DATABASE_URL não configurada na Vercel.' });
-    }
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = neon(databaseUrl);
 
     if (req.method === 'GET') {
-      const key = String(req.query.key || '');
-      if (!ALLOWED_KEYS.has(key)) {
-        return res.status(400).json({ error: 'Chave inválida.' });
-      }
-      const rows = await sql`select value from kv_store where key = ${key}`;
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ value: rows.length ? rows[0].value : null });
+      const key = typeof req.query?.key === 'string' ? req.query.key : '';
+      if (!ALLOWED_KEYS.has(key)) return send(res, 400, { error: 'Chave inválida ou não permitida.' });
+
+      const rows = await sql`SELECT value FROM kv_store WHERE key = ${key} LIMIT 1`;
+      return send(res, 200, { value: rows.length ? rows[0].value : null });
     }
 
-    if (req.method === 'POST') {
-      const body = req.body || {};
-      const key = String(body.key || '');
-      if (!ALLOWED_KEYS.has(key)) {
-        return res.status(400).json({ error: 'Chave inválida.' });
-      }
-      if (body.value === undefined) {
-        return res.status(400).json({ error: 'Valor ausente.' });
-      }
-      await sql`
-        insert into kv_store (key, value, updated_at)
-        values (${key}, ${JSON.stringify(body.value)}::jsonb, now())
-        on conflict (key) do update
-        set value = excluded.value, updated_at = now()
-      `;
-      return res.status(200).json({ ok: true });
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); }
+      catch (_) { return send(res, 400, { error: 'JSON inválido no corpo da requisição.' }); }
     }
 
-    return res.status(405).json({ error: 'Método não permitido.' });
-  } catch (e) {
-    console.error('kv error:', e);
-    return res.status(500).json({ error: e && e.message ? e.message : 'Erro interno.' });
+    const key = body?.key;
+    if (typeof key !== 'string' || !ALLOWED_KEYS.has(key)) {
+      return send(res, 400, { error: 'Chave inválida ou não permitida.' });
+    }
+    if (!Object.prototype.hasOwnProperty.call(body, 'value')) {
+      return send(res, 400, { error: 'O campo value é obrigatório.' });
+    }
+
+    const value = JSON.stringify(body.value);
+    await sql`
+      INSERT INTO kv_store (key, value)
+      VALUES (${key}, ${value}::jsonb)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    `;
+    return send(res, 200, { ok: true });
+  } catch (error) {
+    console.error('Erro na API /api/kv:', error);
+    return send(res, 500, { error: 'Erro interno ao acessar o banco de dados.' });
   }
 }
