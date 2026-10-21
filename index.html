@@ -46,7 +46,7 @@
   header.board::before{
     content:"";
     position:absolute;inset:0;
-    background-image: radial-gradient(rgba(241,241,248,0.05) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(244,241,231,0.05) 1px, transparent 1px);
     background-size:6px 6px;
     pointer-events:none;
   }
@@ -75,14 +75,6 @@
     color:var(--chalk-dim);
     margin-top:4px;
   }
-  .who{
-    text-align:right;
-    font-family:'Oswald',sans-serif;
-    font-size:13px;
-    color:var(--chalk-dim);
-  }
-  .who b{color:var(--chalk);font-weight:500;}
-  .who a{color:var(--floodlight);text-decoration:underline;cursor:pointer;}
 
   nav.tabs{
     display:flex;
@@ -146,12 +138,8 @@
     resize:vertical;
   }
   input[type=number]{width:56px;text-align:center;font-family:'Roboto Mono',monospace;font-weight:700;}
-  input::placeholder, textarea::placeholder{color:#5b6b60;}
+  input::placeholder, textarea::placeholder{color:#7f82b8;}
   .import-status{font-size:13px;margin-top:6px;white-space:pre-line;}
-  .collapsible-toggle{
-    font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;
-    color:var(--floodlight);cursor:pointer;display:inline-block;margin-bottom:8px;
-  }
   button.btn{
     background:var(--floodlight);
     color:#241a04;
@@ -176,7 +164,6 @@
 
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
 
-  /* Ranking */
   table.rank{width:100%;border-collapse:collapse;}
   table.rank th{
     text-align:left;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;
@@ -210,12 +197,6 @@
     font-family:'Roboto Mono',monospace;font-size:13px;font-weight:700;color:var(--chalk);
     background:#242496;padding:4px 10px;border-radius:5px;min-width:56px;text-align:center;
   }
-  .pts-tag{
-    font-family:'Roboto Mono',monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;margin-left:8px;
-  }
-  .pts-tag.pExact{background:rgba(111,207,151,0.15);color:var(--green-ok);}
-  .pts-tag.pResult{background:rgba(255,201,77,0.15);color:var(--floodlight);}
-  .pts-tag.pWrong{background:rgba(228,87,46,0.12);color:#f0906f;}
 
   .player-chip{
     display:inline-flex;align-items:center;gap:8px;
@@ -236,11 +217,11 @@
   .round-tag{font-family:'Roboto Mono',monospace;font-size:11px;padding:3px 9px;border-radius:5px;text-transform:uppercase;letter-spacing:1px;}
   .round-tag.aberta{background:rgba(255,201,77,0.15);color:var(--floodlight);}
   .round-tag.encerrada{background:rgba(111,207,151,0.15);color:var(--green-ok);}
-  .remove-x{color:#f0906f;cursor:pointer;font-size:13px;margin-left:8px;}
 
   ::-webkit-scrollbar{height:6px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -271,53 +252,42 @@
 (function(){
   var state = { users: [], rounds: [], picks: {}, view: 'ranking', loaded:false };
 
-var SEED_PLAYERS = [
-  ['Spinkfloyd',295],['Will',273],['Dudu',273],['Gokulandia',265],['Douglas',260],
-  ['Marlan',257],['Miguel',241],['Tairony',224],['Da Cruz',218],['Gusta',206],
-  ['Erikson',197],['Fabrício',145],['Andrey',127],['André',95],['Janderson',48],
-  ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Mylu',12],
-  ['Shiva',11],['Júlio',9],['João Felipe',8],['Emanoel',6]
-];
+  var SEED_PLAYERS = [
+    ['Da Cruz',187],['Marlan',185],['Dudu',184],['Spinkfloyd',181],['Gokulandia',165],
+    ['Will',161],['Miguel',152],['Tairony',148],['Douglas',140],['Erikson',122],
+    ['Gusta',121],['Andrey',109],['André',95],['Fabrício',77],['Janderson',31],
+    ['Pedro',20],['Andersu',17],['Adanilson',16],['Erick',13],['Shiva',11],
+    ['Júlio',9],['João Felipe',8],['Emanoel',6]
+  ];
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(16).slice(2))); }
 
-  // ---------- Armazenamento (via função /api/kv na Vercel -> Neon) ----------
+  var SUPABASE_URL = 'https://moomnnbwsdrcncxsrmcp.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_caunjdvohM6xARp0MVmCmw_6G3sJ-B5';
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // Lê uma chave. Retorna o valor, ou null se a chave não existir.
-  // Se der erro de rede/servidor, LANÇA exceção (não finge que está vazio).
-  async function sGet(key){
-    var r = await fetch('/api/kv?key=' + encodeURIComponent(key));
-    if(!r.ok) throw new Error('Falha ao ler "' + key + '" (HTTP ' + r.status + ')');
-    var j = await r.json();
-    return j.value;
-  }
-
-  async function sSet(key, value){
+  async function sGet(key, shared){
     try{
-      var r = await fetch('/api/kv', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: key, value: value })
-      });
-      if(!r.ok) throw new Error('HTTP ' + r.status);
+      var res = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(res.error) throw res.error;
+      return res.data ? res.data.value : null;
+    }catch(e){ console.error('storage get failed', key, e); return null; }
+  }
+  async function sSet(key, value, shared){
+    try{
+      var res = await supabaseClient.from('kv_store').upsert({ key: key, value: value });
+      if(res.error) throw res.error;
       return true;
     }catch(e){ console.error('storage set failed', key, e); return false; }
   }
 
   // Busca a versão mais recente do banco, aplica só a mudança necessária (via mutateFn)
   // e grava de volta — evita que uma aba desatualizada apague dados novos de outros dispositivos.
-  // Se a LEITURA falhar, aborta sem gravar nada (evita apagar dados por engano).
   async function mutateShared(key, defaultValue, mutateFn){
-    var fresh;
-    try{
-      fresh = await sGet(key);
-    }catch(e){
-      console.error('storage get failed', key, e);
-      return { ok: false, data: null, extra: undefined };
-    }
+    var fresh = await sGet(key, true);
     if(fresh==null) fresh = defaultValue;
     var extra = mutateFn(fresh);
-    var ok = await sSet(key, fresh);
+    var ok = await sSet(key, fresh, true);
     if(ok) state[key] = fresh;
     return { ok: ok, data: fresh, extra: extra };
   }
@@ -488,6 +458,13 @@ var SEED_PLAYERS = [
     return lines.join('\n');
   }
 
+  // Texto da rodada no formato enviado no WhatsApp para o pessoal palpitar
+  function buildRoundMessage(r){
+    var lines = ['BRASILEIRÃO - '+r.matchday+'ª RODADA'];
+    r.games.forEach(function(g){ lines.push(g.home+' x '+g.away); });
+    return lines.join('\n');
+  }
+
   function getReferenceRoundForRanking(){
     var ref = null;
     if(lastFinalizedRoundId){
@@ -517,6 +494,19 @@ var SEED_PLAYERS = [
       btn.removeAttribute('data-armed');
       btn.textContent = btn.getAttribute('data-original-text') || btn.textContent;
     }, 4000);
+  }
+
+  async function copyFromTextarea(textEl, msgEl){
+    try{
+      await navigator.clipboard.writeText(textEl.value);
+      msgEl.style.color = 'var(--green-ok)';
+      msgEl.textContent = 'Copiado! Já pode colar no WhatsApp.';
+    }catch(e){
+      textEl.focus();
+      textEl.select();
+      msgEl.style.color = '#f0906f';
+      msgEl.textContent = 'Não copiei automaticamente — selecionei o texto pra você, use Ctrl+C (ou Cmd+C).';
+    }
   }
 
   // ---------- Views ----------
@@ -568,19 +558,8 @@ var SEED_PLAYERS = [
 
     var copyBtn = document.getElementById('copyRankingBtn');
     if(copyBtn){
-      copyBtn.onclick = async function(){
-        var textEl = document.getElementById('rankingCopyText');
-        var msgEl = document.getElementById('copyRankingMsg');
-        try{
-          await navigator.clipboard.writeText(textEl.value);
-          msgEl.style.color = 'var(--green-ok)';
-          msgEl.textContent = 'Copiado! Já pode colar no WhatsApp.';
-        }catch(e){
-          textEl.focus();
-          textEl.select();
-          msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não copiei automaticamente — selecionei o texto pra você, use Ctrl+C (ou Cmd+C).';
-        }
+      copyBtn.onclick = function(){
+        copyFromTextarea(document.getElementById('rankingCopyText'), document.getElementById('copyRankingMsg'));
       };
     }
   }
@@ -588,10 +567,10 @@ var SEED_PLAYERS = [
   function renderJogadores(){
     var html = '<div class="card"><h2>Jogadores cadastrados</h2>';
     if(state.users.length===0){
-      html += '<p class="muted">Ainda não há jogadores. Cadastre o primeiro abaixo, ou eles entram automaticamente ao importar palpites do WhatsApp em Rodadas.</p>';
+      html += '<p class="muted">Ainda não há jogadores. Cadastre o primeiro abaixo, ou eles entram automaticamente ao colar um palpite em Rodadas.</p>';
     } else {
       state.users.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(u){
-        html += '<div class="row" style="margin-bottom:6px;" data-remove-user-id="'+u.id+'">'+
+        html += '<div class="row" style="margin-bottom:6px;">'+
           '<span class="player-chip" style="flex:1;">'+
             '<span class="avatar">'+esc(initials(u.name))+'</span>'+esc(u.name)+
           '</span>'+
@@ -707,11 +686,29 @@ var SEED_PLAYERS = [
   }
 
   var manualEditRounds = {};
-  var globalSelectedUserId = null;
   var lastFinalizedRoundId = null;
+  var globalSelectedUserId = null;
+  var upcomingRoundsCache = null;
 
   function renderRodadas(){
-    var html = '<div class="card"><h2>Colar palpite</h2>'+
+    // ----- Card: jogos das próximas rodadas no formato do WhatsApp -----
+    var html = '<div class="card"><h2>Jogos para o grupo palpitar</h2>'+
+      '<p class="muted" style="margin:0 0 10px;">Busca os jogos das próximas rodadas do Brasileirão já no formato que você manda no WhatsApp.</p>'+
+      '<div class="row"><button class="btn" id="upcomingBtn">Buscar próximas rodadas</button><span class="muted" id="upcomingMsg"></span></div>';
+    if(upcomingRoundsCache && upcomingRoundsCache.length){
+      upcomingRoundsCache.forEach(function(r, idx){
+        html += '<div style="margin-top:12px;">'+
+          '<textarea readonly id="upcomingText'+idx+'" style="min-height:'+(r.games.length*22+50)+'px;">'+esc(buildRoundMessage(r))+'</textarea>'+
+          '<div class="row" style="margin-top:6px;">'+
+            '<button class="btn secondary copy-upcoming-btn" data-idx="'+idx+'">Copiar '+r.matchday+'ª rodada</button>'+
+            '<span class="muted" id="upcomingCopyMsg'+idx+'"></span>'+
+          '</div></div>';
+      });
+    }
+    html += '</div>';
+
+    // ----- Card: colar palpite -----
+    html += '<div class="card"><h2>Colar palpite</h2>'+
       '<p class="muted" style="margin:0 0 8px;">Cole a mensagem do WhatsApp exatamente como a pessoa mandou, já com os placares dela:</p>'+
       '<p class="muted" style="margin:0 0 8px;">Quem mandou esse palpite? Clique no nome:</p>'+
       '<div style="margin-bottom:8px;">';
@@ -736,6 +733,7 @@ var SEED_PLAYERS = [
     html += '<div class="import-status" id="globalPickMsg"></div>';
     html += '</div>';
 
+    // ----- Card: rodadas cadastradas -----
     html += '<div class="card"><h2>Rodadas cadastradas</h2>';
     if(state.rounds.length===0){
       html += '<div class="empty">Nenhuma rodada criada ainda. Assim que você colar o primeiro palpite acima, a rodada aparece aqui automaticamente.</div>';
@@ -823,6 +821,43 @@ var SEED_PLAYERS = [
 
     document.getElementById('main').innerHTML = html;
 
+    // ----- Handlers: próximas rodadas -----
+    var upcomingBtn = document.getElementById('upcomingBtn');
+    if(upcomingBtn){
+      upcomingBtn.onclick = async function(){
+        var msg = document.getElementById('upcomingMsg');
+        upcomingBtn.disabled = true;
+        upcomingBtn.textContent = 'Buscando...';
+        msg.style.color = 'var(--chalk-dim)';
+        msg.textContent = 'Consultando a tabela do Brasileirão...';
+        try{
+          var resp = await fetch('/api/upcoming?n=3');
+          var data = await resp.json();
+          if(!resp.ok) throw new Error(data.error || 'Erro ao buscar as próximas rodadas.');
+          upcomingRoundsCache = data.rounds || [];
+          renderRodadas();
+          if(upcomingRoundsCache.length===0){
+            var m2 = document.getElementById('upcomingMsg');
+            if(m2){ m2.style.color = '#f0906f'; m2.textContent = 'Não encontrei rodadas futuras no calendário.'; }
+          }
+        }catch(e){
+          console.error(e);
+          upcomingBtn.disabled = false;
+          upcomingBtn.textContent = 'Buscar próximas rodadas';
+          msg.style.color = '#f0906f';
+          msg.textContent = 'Não consegui buscar agora. Erro: '+(e && e.message ? e.message : 'desconhecido');
+        }
+      };
+    }
+
+    document.querySelectorAll('.copy-upcoming-btn').forEach(function(btn){
+      btn.onclick = function(){
+        var idx = btn.getAttribute('data-idx');
+        copyFromTextarea(document.getElementById('upcomingText'+idx), document.getElementById('upcomingCopyMsg'+idx));
+      };
+    });
+
+    // ----- Handlers: colar palpite -----
     document.querySelectorAll('.pick-select-chip').forEach(function(chip){
       chip.onclick = function(){
         globalSelectedUserId = chip.getAttribute('data-user-id');
@@ -888,7 +923,7 @@ var SEED_PLAYERS = [
 
         if(!roundRes.ok){
           msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Verifique a conexão e tente de novo.';
+          msgEl.textContent = 'Não consegui salvar a rodada no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
           return;
         }
         var round = roundRes.extra.round;
@@ -901,7 +936,7 @@ var SEED_PLAYERS = [
         });
         if(!picksRes.ok){
           msgEl.style.color = '#f0906f';
-          msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Verifique a conexão e tente de novo.';
+          msgEl.textContent = 'Não consegui salvar o palpite no banco de dados. Confira se a URL e a chave do Supabase no index.html estão certas.';
           return;
         }
         var mergedPicks = picksRes.data[round.id+'_'+userId];
@@ -982,6 +1017,7 @@ var SEED_PLAYERS = [
       };
     }
 
+    // ----- Handlers: rodadas cadastradas -----
     document.querySelectorAll('.toggle-manual-btn').forEach(function(btn){
       btn.onclick = function(){
         var roundId = btn.getAttribute('data-round-id');
@@ -1146,14 +1182,8 @@ var SEED_PLAYERS = [
 
   (async function init(){
     document.getElementById('main').innerHTML = '<div class="card"><div class="empty">Carregando bolão...</div></div>';
-    try{
-      await loadAll();
-      await seedInitialPlayers();
-    }catch(e){
-      console.error(e);
-      document.getElementById('main').innerHTML = '<div class="card"><div class="empty">Não consegui conectar ao banco de dados agora.<br>Recarregue a página em instantes.</div></div>';
-      return;
-    }
+    await loadAll();
+    await seedInitialPlayers();
     renderWho();
     setView('ranking');
   })();
