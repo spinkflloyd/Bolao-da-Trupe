@@ -1,4 +1,41 @@
 
+function formatTeamName(name) {
+  const normalized = (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const aliases = [
+    [/vasco/, 'Vasco'],
+    [/remo/, 'Remo'],
+    [/sao paulo/, 'São Paulo'],
+    [/vitoria/, 'Vitória'],
+    [/atletico mineiro|atletico mg/, 'Atlético MG'],
+    [/santos/, 'Santos'],
+    [/flamengo/, 'Flamengo'],
+    [/fluminense/, 'Fluminense'],
+    [/palmeiras/, 'Palmeiras'],
+    [/corinthians/, 'Corinthians'],
+    [/gremio/, 'Grêmio'],
+    [/internacional/, 'Internacional'],
+    [/bahia/, 'Bahia'],
+    [/mirassol/, 'Mirassol'],
+    [/coritiba/, 'Coritiba'],
+    [/botafogo/, 'Botafogo'],
+    [/chapecoense/, 'Chapecoense'],
+    [/athletico paranaense|athletico pr/, 'Athletico PR'],
+    [/red bull bragantino|rb bragantino|bragantino/, 'RB Bragantino'],
+    [/cruzeiro/, 'Cruzeiro']
+  ];
+
+  const match = aliases.find(([pattern]) => pattern.test(normalized));
+
+  return match ? match[1] : name;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({
@@ -65,9 +102,9 @@ export default async function handler(req, res) {
       }
 
       grouped.get(matchday).games.push({
-        home: match.homeTeam.name,
-        away: match.awayTeam.name
-      });
+         home: formatTeamName(match.homeTeam.name),
+         away: formatTeamName(match.awayTeam.name)
+        });
     }
 
     const requested = Number.parseInt(req.query?.n, 10);

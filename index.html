@@ -478,11 +478,17 @@
   }
 
   // Texto da rodada no formato enviado no WhatsApp para o pessoal palpitar
-  function buildRoundMessage(r){
-    var lines = ['BRASILEIRÃO - '+r.matchday+'ª RODADA'];
-    r.games.forEach(function(g){ lines.push(g.home+' x '+g.away); });
-    return lines.join('\n');
-  }
+  
+function buildRoundMessage(r) {
+  var lines = ['BRASILEIRÃO ' + r.matchday + 'ª RODADA'];
+
+  r.games.forEach(function(g) {
+    lines.push(g.home + ' x ' + g.away);
+  });
+
+  return lines.join('\n');
+}
+
 
   function getReferenceRoundForRanking(){
     var ref = null;
